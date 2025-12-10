@@ -33,6 +33,8 @@
         border-radius: 8px;
         padding: 20px;
         min-height: 300px;
+        max-height: 400px;
+        overflow-y: auto;
         background-color: #f9f9f9;
         font-family: inherit;
         line-height: 1.6;
@@ -66,6 +68,54 @@
       a:hover {
         text-decoration: underline;
       }
+
+      /* Merged mode styles */
+      .container.merged {
+        position: relative;
+        display: block;
+        height: 400px;
+      }
+
+      .container.merged .editor-section {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .container.merged #editor {
+        background-color: transparent !important;
+        position: relative;
+        z-index: 2;
+      }
+
+      .container.merged #output {
+        color: #fff;
+        position: relative;
+        z-index: 1;
+      }
+
+      .merge-controls {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f0f0f0;
+        border-radius: 8px;
+      }
+
+      .merge-controls label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        font-weight: 500;
+      }
+
+      .merge-controls input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -79,6 +129,16 @@
       <button onclick="clearEditor()">Clear Content</button>
       <button onclick="insertBold()">Insert Bold Text</button>
       <button onclick="insertItalic()">Insert Italic Text</button>
+      <div class="merge-controls">
+        <label>
+          <input
+            type="checkbox"
+            id="mergeCheckbox"
+            onchange="toggleMergeMode()"
+          />
+          <span>Merge Editors (Overlay Mode)</span>
+        </label>
+      </div>
     </div>
 
     <div class="container">
@@ -287,11 +347,11 @@
         });
 
         editor.addEventListener("compositionupdate", function (e) {
+          // Don't call updateOutputWithHighlight here!
+          // The editor's DOM hasn't been updated yet at this point
           if (isComposing) {
             compositionData = e.data || "";
             console.log("Composition update:", compositionData);
-            // Don't call updateOutputWithHighlight here!
-            // The editor's DOM hasn't been updated yet at this point
           }
         });
 
@@ -333,6 +393,37 @@
           document.execCommand("italic");
         }
 
+        function toggleMergeMode() {
+          const container = document.querySelector(".container");
+          const checkbox = document.getElementById("mergeCheckbox");
+          const editorSections =
+            document.querySelectorAll(".editor-section h3");
+
+          if (checkbox.checked) {
+            // Enable merge mode
+            container.classList.add("merged");
+            // Hide section headers in merged mode
+            editorSections.forEach((h3) => (h3.style.display = "none"));
+          } else {
+            // Disable merge mode
+            container.classList.remove("merged");
+            // Show section headers
+            editorSections.forEach((h3) => (h3.style.display = "block"));
+          }
+        }
+
+        // Sync scroll positions between editor and output
+        editor.addEventListener("scroll", function () {
+          output.scrollTop = editor.scrollTop;
+          output.scrollLeft = editor.scrollLeft;
+        });
+
+        // Also sync when output is scrolled (in case user clicks on it)
+        output.addEventListener("scroll", function () {
+          editor.scrollTop = output.scrollTop;
+          editor.scrollLeft = output.scrollLeft;
+        });
+
         // Auto sync content on page load
         updateOutput();
         output.setAttribute("contenteditable", "false");
@@ -341,6 +432,7 @@
         window.clearEditor = clearEditor;
         window.insertBold = insertBold;
         window.insertItalic = insertItalic;
+        window.toggleMergeMode = toggleMergeMode;
       });
     </script>
   </body>
