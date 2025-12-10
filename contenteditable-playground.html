@@ -116,7 +116,17 @@
         height: 18px;
         cursor: pointer;
       }
+
+      /* ID selector for testing - mark style */
+      #marked-text {
+        background-color: #ffeb3b;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
     </style>
+    <script type="module" src="/contenteditable.js"></script>
   </head>
   <body>
     <h1>ContentEditable Playground</h1>
@@ -129,6 +139,9 @@
       <button onclick="clearEditor()">Clear Content</button>
       <button onclick="insertBold()">Insert Bold Text</button>
       <button onclick="insertItalic()">Insert Italic Text</button>
+      <button onclick="insertMarkedParagraph()">
+        Insert Marked Paragraph (ID Test)
+      </button>
       <div class="merge-controls">
         <label>
           <input
@@ -183,257 +196,12 @@
 
       <div class="editor-section">
         <h3>HTML Output</h3>
-        <div id="output" class="playground" contenteditable="true">
+        <div id="output" class="playground">
           Start typing here... You can edit this text freely!
         </div>
       </div>
     </div>
 
     <a href="index.html">← Back to Demo Page</a>
-
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        const editor = document.getElementById("editor");
-        const output = document.getElementById("output");
-
-        let isComposing = false;
-        let compositionStartOffset = 0;
-        let compositionStartPath = null; // Store path, not node reference
-        let compositionData = "";
-
-        function updateOutput() {
-          output.innerHTML = editor.innerHTML;
-        }
-
-        function updateOutputWithHighlight(compositionText) {
-          // Clone the editor's content
-          const clonedContent = editor.cloneNode(true);
-
-          // Use the stored composition start path to find the node
-          // Don't use current selection - it moves during IME cycling!
-          if (compositionStartPath) {
-            const targetNode = getNodeByPath(
-              compositionStartPath,
-              clonedContent
-            );
-
-            if (targetNode && compositionText) {
-              let textNode = targetNode;
-              let parent = null;
-
-              // If targetNode is an element node, find the text node within it
-              if (targetNode.nodeType === Node.ELEMENT_NODE) {
-                // Find the text node child or the node at the offset
-                if (range.startOffset < targetNode.childNodes.length) {
-                  const childNode = targetNode.childNodes[range.startOffset];
-                  if (childNode && childNode.nodeType === Node.TEXT_NODE) {
-                    textNode = childNode;
-                    parent = targetNode;
-                  }
-                } else if (targetNode.childNodes.length > 0) {
-                  // Use the last child if it's a text node
-                  const lastChild =
-                    targetNode.childNodes[targetNode.childNodes.length - 1];
-                  if (lastChild && lastChild.nodeType === Node.TEXT_NODE) {
-                    textNode = lastChild;
-                    parent = targetNode;
-                  }
-                } else {
-                  // No text node yet, targetNode is the parent
-                  textNode = null;
-                  parent = targetNode;
-                }
-              } else if (targetNode.nodeType === Node.TEXT_NODE) {
-                textNode = targetNode;
-                parent = targetNode.parentNode;
-              }
-
-              // Handle text node case
-              if (textNode && textNode.nodeType === Node.TEXT_NODE && parent) {
-                const textContent = textNode.textContent;
-                const compositionLength = compositionText.length;
-
-                // Use the FIXED start offset from composition start
-                // Don't calculate backwards - that breaks with IME cycling!
-                const startOffset = compositionStartOffset;
-                const endOffset = startOffset + compositionLength;
-
-                if (startOffset >= 0 && endOffset <= textContent.length) {
-                  // Split the text node and wrap the composition part
-                  const beforeText = textContent.substring(0, startOffset);
-                  const composingText = textContent.substring(
-                    startOffset,
-                    endOffset
-                  );
-                  const afterText = textContent.substring(endOffset);
-
-                  // Create the highlighted span
-                  const span = document.createElement("span");
-                  span.style.borderBottom = "1px dashed #007bff";
-                  // span.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
-                  span.textContent = composingText;
-
-                  // Replace the text node with structured content
-                  const beforeNode = document.createTextNode(beforeText);
-                  const afterNode = document.createTextNode(afterText);
-
-                  parent.replaceChild(afterNode, textNode);
-                  parent.insertBefore(span, afterNode);
-                  parent.insertBefore(beforeNode, span);
-                }
-              } else if (parent && !textNode) {
-                // No text node yet - the element is empty or just being typed into
-                // Create the highlighted span directly
-                const span = document.createElement("span");
-                span.style.borderBottom = "1px dashed #007bff";
-                // span.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
-                span.textContent = compositionText;
-                parent.appendChild(span);
-              }
-            }
-          } else {
-            // Fallback: no composition path stored, just show editor content
-            output.innerHTML = editor.innerHTML;
-            return;
-          }
-
-          output.innerHTML = clonedContent.innerHTML;
-        }
-
-        // Helper function to get the path to a node
-        function getNodePath(node, root) {
-          const path = [];
-          let current = node;
-
-          while (current && current !== root) {
-            const parent = current.parentNode;
-            if (parent) {
-              const index = Array.from(parent.childNodes).indexOf(current);
-              path.unshift(index);
-            }
-            current = parent;
-          }
-
-          return path;
-        }
-
-        // Helper function to get a node by path
-        function getNodeByPath(path, root) {
-          let current = root;
-
-          for (const index of path) {
-            if (current.childNodes[index]) {
-              current = current.childNodes[index];
-            } else {
-              return null;
-            }
-          }
-
-          return current;
-        }
-
-        // Composition event handlers
-        editor.addEventListener("compositionstart", function (e) {
-          isComposing = true;
-          const selection = window.getSelection();
-          if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            compositionStartOffset = range.startOffset;
-            // Store the PATH to the node, not the node itself
-            // This allows us to find the same node in the cloned content
-            compositionStartPath = getNodePath(range.startContainer, editor);
-          }
-          console.log("Composition started at offset:", compositionStartOffset);
-        });
-
-        editor.addEventListener("compositionupdate", function (e) {
-          // Don't call updateOutputWithHighlight here!
-          // The editor's DOM hasn't been updated yet at this point
-          if (isComposing) {
-            compositionData = e.data || "";
-            console.log("Composition update:", compositionData);
-          }
-        });
-
-        editor.addEventListener("compositionend", function (e) {
-          isComposing = false;
-          compositionData = "";
-          compositionStartPath = null; // Clear the stored path
-          console.log("Composition ended:", e.data);
-          // Remove highlighting and show normal output
-          updateOutput();
-        });
-
-        // Input handler - THIS is when the DOM is actually updated!
-        editor.addEventListener("input", function (e) {
-          if (isComposing) {
-            // During composition: editor's DOM is NOW updated
-            // We can safely clone and highlight the composition text
-            console.log(
-              "Input during composition, highlighting:",
-              compositionData
-            );
-            updateOutputWithHighlight(compositionData);
-          } else {
-            // Regular input (not composing), no highlighting needed
-            updateOutput();
-          }
-        });
-
-        function clearEditor() {
-          editor.innerHTML = "";
-          updateOutput();
-        }
-
-        function insertBold() {
-          document.execCommand("bold");
-        }
-
-        function insertItalic() {
-          document.execCommand("italic");
-        }
-
-        function toggleMergeMode() {
-          const container = document.querySelector(".container");
-          const checkbox = document.getElementById("mergeCheckbox");
-          const editorSections =
-            document.querySelectorAll(".editor-section h3");
-
-          if (checkbox.checked) {
-            // Enable merge mode
-            container.classList.add("merged");
-            // Hide section headers in merged mode
-            editorSections.forEach((h3) => (h3.style.display = "none"));
-          } else {
-            // Disable merge mode
-            container.classList.remove("merged");
-            // Show section headers
-            editorSections.forEach((h3) => (h3.style.display = "block"));
-          }
-        }
-
-        // Sync scroll positions between editor and output
-        editor.addEventListener("scroll", function () {
-          output.scrollTop = editor.scrollTop;
-          output.scrollLeft = editor.scrollLeft;
-        });
-
-        // Also sync when output is scrolled (in case user clicks on it)
-        output.addEventListener("scroll", function () {
-          editor.scrollTop = output.scrollTop;
-          editor.scrollLeft = output.scrollLeft;
-        });
-
-        // Auto sync content on page load
-        updateOutput();
-        output.setAttribute("contenteditable", "false");
-
-        // Make functions globally accessible
-        window.clearEditor = clearEditor;
-        window.insertBold = insertBold;
-        window.insertItalic = insertItalic;
-        window.toggleMergeMode = toggleMergeMode;
-      });
-    </script>
   </body>
 </html>
