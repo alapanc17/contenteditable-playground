@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ContentEditable Playground</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1400px;
+        margin: 40px auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      h1 {
+        color: #333;
+      }
+      .container {
+        display: flex;
+        gap: 20px;
+        margin: 20px 0;
+      }
+      .editor-section {
+        flex: 1;
+      }
+      .editor-section h3 {
+        margin-top: 0;
+        color: #555;
+        font-size: 16px;
+      }
+      .playground {
+        border: 2px solid #ccc;
+        border-radius: 8px;
+        padding: 20px;
+        min-height: 300px;
+        background-color: #f9f9f9;
+        font-family: inherit;
+        line-height: 1.6;
+      }
+      #editor,
+      #output {
+        background-color: #fff;
+        cursor: text;
+      }
+      .controls {
+        margin: 20px 0;
+      }
+      button {
+        padding: 10px 15px;
+        margin-right: 10px;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      a {
+        display: inline-block;
+        margin-top: 20px;
+        color: #0066cc;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ContentEditable Playground</h1>
+    <p>
+      Type in the left editor and see the HTML output updated in real-time on
+      the right.
+    </p>
+
+    <div class="controls">
+      <button onclick="clearEditor()">Clear Content</button>
+      <button onclick="insertBold()">Insert Bold Text</button>
+      <button onclick="insertItalic()">Insert Italic Text</button>
+    </div>
+
+    <div class="container">
+      <div class="editor-section">
+        <h3>Editable Content</h3>
+        <div id="editor" class="playground" contenteditable="true">
+          <p>
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
+            ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+            aliquip ex ea commodo consequat. Duis aute irure dolor in
+            reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
+            pariatur.
+          </p>
+
+          <p>
+            Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+            officia deserunt mollit anim id est laborum. Sed ut perspiciatis
+            unde omnis iste natus error sit voluptatem accusantium doloremque
+            laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore
+            veritatis et quasi architecto beatae vitae dicta sunt explicabo.
+          </p>
+
+          <p>
+            Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut
+            fugit, sed quia consequuntur magni dolores eos qui ratione
+            voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem
+            ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non
+            numquam eius modi tempora incidunt ut labore et dolore magnam
+            aliquam quaerat voluptatem.
+          </p>
+
+          <p>
+            Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis
+            suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis
+            autem vel eum iure reprehenderit qui in ea voluptate velit esse quam
+            nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo
+            voluptas nulla pariatur.
+          </p>
+        </div>
+      </div>
+
+      <div class="editor-section">
+        <h3>HTML Output</h3>
+        <div id="output" class="playground" contenteditable="true">
+          Start typing here... You can edit this text freely!
+        </div>
+      </div>
+    </div>
+
+    <a href="index.html">← Back to Demo Page</a>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const editor = document.getElementById("editor");
+        const output = document.getElementById("output");
+
+        let isComposing = false;
+        let compositionStartOffset = 0;
+        let compositionStartPath = null; // Store path, not node reference
+        let compositionData = "";
+
+        function updateOutput() {
+          output.innerHTML = editor.innerHTML;
+        }
+
+        function updateOutputWithHighlight(compositionText) {
+          // Clone the editor's content
+          const clonedContent = editor.cloneNode(true);
+
+          // Use the stored composition start path to find the node
+          // Don't use current selection - it moves during IME cycling!
+          if (compositionStartPath) {
+            const targetNode = getNodeByPath(
+              compositionStartPath,
+              clonedContent
+            );
+
+            if (targetNode && compositionText) {
+              let textNode = targetNode;
+              let parent = null;
+
+              // If targetNode is an element node, find the text node within it
+              if (targetNode.nodeType === Node.ELEMENT_NODE) {
+                // Find the text node child or the node at the offset
+                if (range.startOffset < targetNode.childNodes.length) {
+                  const childNode = targetNode.childNodes[range.startOffset];
+                  if (childNode && childNode.nodeType === Node.TEXT_NODE) {
+                    textNode = childNode;
+                    parent = targetNode;
+                  }
+                } else if (targetNode.childNodes.length > 0) {
+                  // Use the last child if it's a text node
+                  const lastChild =
+                    targetNode.childNodes[targetNode.childNodes.length - 1];
+                  if (lastChild && lastChild.nodeType === Node.TEXT_NODE) {
+                    textNode = lastChild;
+                    parent = targetNode;
+                  }
+                } else {
+                  // No text node yet, targetNode is the parent
+                  textNode = null;
+                  parent = targetNode;
+                }
+              } else if (targetNode.nodeType === Node.TEXT_NODE) {
+                textNode = targetNode;
+                parent = targetNode.parentNode;
+              }
+
+              // Handle text node case
+              if (textNode && textNode.nodeType === Node.TEXT_NODE && parent) {
+                const textContent = textNode.textContent;
+                const compositionLength = compositionText.length;
+
+                // Use the FIXED start offset from composition start
+                // Don't calculate backwards - that breaks with IME cycling!
+                const startOffset = compositionStartOffset;
+                const endOffset = startOffset + compositionLength;
+
+                if (startOffset >= 0 && endOffset <= textContent.length) {
+                  // Split the text node and wrap the composition part
+                  const beforeText = textContent.substring(0, startOffset);
+                  const composingText = textContent.substring(
+                    startOffset,
+                    endOffset
+                  );
+                  const afterText = textContent.substring(endOffset);
+
+                  // Create the highlighted span
+                  const span = document.createElement("span");
+                  span.style.borderBottom = "1px dashed #007bff";
+                  // span.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
+                  span.textContent = composingText;
+
+                  // Replace the text node with structured content
+                  const beforeNode = document.createTextNode(beforeText);
+                  const afterNode = document.createTextNode(afterText);
+
+                  parent.replaceChild(afterNode, textNode);
+                  parent.insertBefore(span, afterNode);
+                  parent.insertBefore(beforeNode, span);
+                }
+              } else if (parent && !textNode) {
+                // No text node yet - the element is empty or just being typed into
+                // Create the highlighted span directly
+                const span = document.createElement("span");
+                span.style.borderBottom = "1px dashed #007bff";
+                // span.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
+                span.textContent = compositionText;
+                parent.appendChild(span);
+              }
+            }
+          } else {
+            // Fallback: no composition path stored, just show editor content
+            output.innerHTML = editor.innerHTML;
+            return;
+          }
+
+          output.innerHTML = clonedContent.innerHTML;
+        }
+
+        // Helper function to get the path to a node
+        function getNodePath(node, root) {
+          const path = [];
+          let current = node;
+
+          while (current && current !== root) {
+            const parent = current.parentNode;
+            if (parent) {
+              const index = Array.from(parent.childNodes).indexOf(current);
+              path.unshift(index);
+            }
+            current = parent;
+          }
+
+          return path;
+        }
+
+        // Helper function to get a node by path
+        function getNodeByPath(path, root) {
+          let current = root;
+
+          for (const index of path) {
+            if (current.childNodes[index]) {
+              current = current.childNodes[index];
+            } else {
+              return null;
+            }
+          }
+
+          return current;
+        }
+
+        // Composition event handlers
+        editor.addEventListener("compositionstart", function (e) {
+          isComposing = true;
+          const selection = window.getSelection();
+          if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            compositionStartOffset = range.startOffset;
+            // Store the PATH to the node, not the node itself
+            // This allows us to find the same node in the cloned content
+            compositionStartPath = getNodePath(range.startContainer, editor);
+          }
+          console.log("Composition started at offset:", compositionStartOffset);
+        });
+
+        editor.addEventListener("compositionupdate", function (e) {
+          if (isComposing) {
+            compositionData = e.data || "";
+            console.log("Composition update:", compositionData);
+            // Don't call updateOutputWithHighlight here!
+            // The editor's DOM hasn't been updated yet at this point
+          }
+        });
+
+        editor.addEventListener("compositionend", function (e) {
+          isComposing = false;
+          compositionData = "";
+          compositionStartPath = null; // Clear the stored path
+          console.log("Composition ended:", e.data);
+          // Remove highlighting and show normal output
+          updateOutput();
+        });
+
+        // Input handler - THIS is when the DOM is actually updated!
+        editor.addEventListener("input", function (e) {
+          if (isComposing) {
+            // During composition: editor's DOM is NOW updated
+            // We can safely clone and highlight the composition text
+            console.log(
+              "Input during composition, highlighting:",
+              compositionData
+            );
+            updateOutputWithHighlight(compositionData);
+          } else {
+            // Regular input (not composing), no highlighting needed
+            updateOutput();
+          }
+        });
+
+        function clearEditor() {
+          editor.innerHTML = "";
+          updateOutput();
+        }
+
+        function insertBold() {
+          document.execCommand("bold");
+        }
+
+        function insertItalic() {
+          document.execCommand("italic");
+        }
+
+        // Auto sync content on page load
+        updateOutput();
+        output.setAttribute("contenteditable", "false");
+
+        // Make functions globally accessible
+        window.clearEditor = clearEditor;
+        window.insertBold = insertBold;
+        window.insertItalic = insertItalic;
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo Page</title>
+    <script type="module" src="/main.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="element-info">
+        <label for="info">Active Element and Selection Range:</label>
+        <div id="info">Select an element or text to see the details.</div>
+      </div>
+
+      <div style="margin: 20px 0;">
+        <a href="contenteditable-playground.html">Go to ContentEditable Playground</a>
+      </div>
+
+      <!-- Text Input -->
+      <input type="text" placeholder="Text Input" />
+
+      <!-- Default Textarea -->
+      <textarea placeholder="Default Textarea" rows="4" cols="50"></textarea>
+
+      <!-- Basic Editable Div -->
+      <div class="demo-section">
+        <h3>1. Basic ContentEditable</h3>
+        <div class="editable-div" contenteditable="true">
+          This is a basic contenteditable div. Try typing here!
+        </div>
+      </div>
+
+      <!-- Nested: false inside true -->
+      <div class="demo-section">
+        <h3>2. Non-editable inside Editable (Most Useful)</h3>
+        <div class="editable-div" contenteditable="true">
+          This text is editable. You can mention
+          <span class="mention" contenteditable="false">@john</span>
+          or add tags like
+          <span class="tag" contenteditable="false">#javascript</span>
+          and continue typing around them. These pills are protected!
+          <br />
+          <u>But underlined element should be editable</u>
+        </div>
+      </div>
+
+      <!-- Nested: true inside true -->
+      <div class="demo-section">
+        <h3>3. Editable inside Editable</h3>
+        <div class="editable-div" contenteditable="true">
+          Outer editable area.
+          <span class="nested-editable" contenteditable="true">
+            Inner editable area with different styling.
+          </span>
+
+          Back to outer area.
+        </div>
+      </div>
+
+      <!-- Nested: true inside false -->
+      <div class="demo-section">
+        <h3>4. Editable inside Non-editable</h3>
+        <div class="editable-div non-editable" contenteditable="false">
+          This text is NOT editable. But this input is:
+          <input
+            type="text"
+            class="inline-input"
+            placeholder="Editable field"
+          />
+          and you can also edit this:
+          <span class="editable-island" contenteditable="true"
+            >editable island</span
+          >
+          while the rest remains protected.
+        </div>
+      </div>
+
+      <!-- Complex Example: Rich Text Editor Simulation -->
+      <div class="demo-section">
+        <h3>5. Complex Example: Simulated Rich Editor</h3>
+        <div class="editable-div rich-editor" contenteditable="true">
+          <p>
+            Welcome to our meeting! Attendees:
+            <span class="mention" contenteditable="false">@alice</span>
+            <span class="mention" contenteditable="false">@bob</span>
+          </p>
+          <p>Topics to discuss:</p>
+          <ul>
+            <li>
+              Project status
+              <span class="tag" contenteditable="false">#urgent</span>
+            </li>
+            <li>Budget review</li>
+          </ul>
+          <div class="widget" contenteditable="false">
+            <strong>📊 Embedded Widget (Non-editable)</strong>
+            <div class="widget-content" contenteditable="true">
+              But you can edit content inside this widget!
+            </div>
+          </div>
+          <p>Continue typing here after the widget...</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

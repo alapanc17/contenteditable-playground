@@ -1,0 +1,316 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: #f5f5f5;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 30px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.element-info {
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #007bff;
+}
+
+.element-info label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#info {
+  font-weight: normal;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+input[type="text"],
+textarea,
+.editable-div {
+  display: block;
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 12px 15px;
+  font-size: 16px;
+  font-family: inherit;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  background-color: white;
+}
+
+input[type="text"]:focus,
+textarea:focus,
+.editable-div:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+input[type="text"]:hover,
+textarea:hover,
+.editable-div:hover {
+  border-color: #b0b0b0;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.5;
+}
+
+.editable-div {
+  min-height: 100px;
+  line-height: 1.5;
+  cursor: text;
+}
+
+.editable-div:empty:before {
+  content: attr(data-placeholder);
+  color: #999;
+}
+
+/* Demo Sections */
+.demo-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+}
+
+.demo-section h3 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #007bff;
+}
+
+/* Mentions and Tags (contenteditable="false" pills) */
+.mention,
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 0 2px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mention {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #90caf9;
+}
+
+.tag {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+  border: 1px solid #ce93d8;
+}
+
+.mention:hover,
+.tag:hover {
+  opacity: 0.8;
+}
+
+/* Nested Editable */
+.nested-editable {
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #fff3e0;
+  border: 2px dashed #ff9800;
+  border-radius: 4px;
+  min-height: 50px;
+}
+
+/* Non-editable */
+.non-editable {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  border-color: #bdbdbd;
+}
+
+/* Inline Input */
+.inline-input {
+  display: inline-block;
+  width: auto;
+  min-width: 150px;
+  margin: 0 5px;
+  padding: 4px 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.inline-input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+/* Editable Island */
+.editable-island {
+  display: inline-block;
+  padding: 4px 8px;
+  margin: 0 4px;
+  background-color: #e8f5e9;
+  border: 2px solid #4caf50;
+  border-radius: 4px;
+  cursor: text;
+}
+
+.editable-island:focus {
+  background-color: #c8e6c9;
+  outline: none;
+}
+
+/* Widget */
+.widget {
+  margin: 15px 0;
+  padding: 15px;
+  background-color: #fff;
+  border: 2px solid #9c27b0;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.widget strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #9c27b0;
+  font-size: 14px;
+}
+
+.widget-content {
+  padding: 10px;
+  background-color: #f3e5f5;
+  border: 1px dashed #9c27b0;
+  border-radius: 4px;
+  cursor: text;
+  min-height: 40px;
+}
+
+.widget-content:focus {
+  background-color: #e1bee7;
+  outline: none;
+}
+
+/* Rich Editor */
+.rich-editor {
+  min-height: 200px;
+}
+
+.rich-editor p {
+  margin: 10px 0;
+}
+
+.rich-editor ul {
+  margin: 10px 0;
+  padding-left: 25px;
+}
+
+.rich-editor li {
+  margin: 5px 0;
+}
+
+/* Common Styles for Links */
+a {
+  color: #0066cc;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+a:hover {
+  text-decoration: underline;
+  color: #0052a3;
+}
+
+/* Common Button Styles */
+button {
+  padding: 10px 15px;
+  margin-right: 10px;
+  cursor: pointer;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: background-color 0.2s ease;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+/* Playground Specific Styles */
+.playground-container {
+  max-width: 1400px;
+}
+
+.editor-grid {
+  display: flex;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.editor-section {
+  flex: 1;
+}
+
+.editor-section h3 {
+  margin-top: 0;
+  color: #555;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.playground {
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  min-height: 300px;
+  background-color: #fff;
+  font-family: inherit;
+  line-height: 1.6;
+  cursor: text;
+}
+
+.playground:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.controls {
+  margin: 20px 0;
+}
