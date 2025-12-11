@@ -12,6 +12,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let range = null;
   let positionedAncestor = null;
   let originalPrimaryPosition = null;
+  let spacerElement = null;
+  let resizeObserver = null;
   const primaryEditor = document.getElementById("primary-editor");
 
   // Composition event handlers
@@ -95,43 +97,80 @@ document.addEventListener("DOMContentLoaded", function () {
   function createCloneEditor() {
     if (cloneEditor) return; // Already created
 
-    // Check if primary editor is already absolutely positioned
+    // 1. Capture measurements BEFORE changing anything
+    const primaryRect = primaryEditor.getBoundingClientRect();
     const computed = window.getComputedStyle(primaryEditor);
-    const currentPosition = computed.position;
     const originalBgColor = computed.backgroundColor;
+    const currentPosition = computed.position;
 
-    console.log("Primary editor position:", currentPosition);
+    const boxSizing = computed.boxSizing;
+    let originalWidth = primaryRect.width;
+    let originalHeight = primaryRect.height;
 
-    if (currentPosition !== "absolute") {
-      // Need to make primary absolute
-      // First, find and position the nearest ancestor
-      positionedAncestor = findNearestAncestor(primaryEditor);
+    if (boxSizing === "content-box") {
+      const paddingLeft = parseFloat(computed.paddingLeft) || 0;
+      const paddingRight = parseFloat(computed.paddingRight) || 0;
+      const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
+      const borderRight = parseFloat(computed.borderRightWidth) || 0;
+      originalWidth =
+        primaryRect.width -
+        paddingLeft -
+        paddingRight -
+        borderLeft -
+        borderRight;
 
-      if (positionedAncestor) {
-        // Make ancestor positioned (relative) if not already
-        const ancestorComputed = window.getComputedStyle(positionedAncestor);
-        if (ancestorComputed.position === "static") {
-          positionedAncestor.style.position = "relative";
-          console.log(
-            "Made ancestor positioned (relative):",
-            positionedAncestor
-          );
-        }
-      }
-
-      // Store original position for restoration on blur
-      originalPrimaryPosition = currentPosition;
-
-      // Make primary absolutely positioned
-      primaryEditor.style.position = "absolute";
-      primaryEditor.style.top = "0";
-      primaryEditor.style.left = "0";
-      primaryEditor.style.width = computed.width;
-      primaryEditor.style.height = computed.height;
-      console.log("Made primary absolutely positioned");
+      const paddingTop = parseFloat(computed.paddingTop) || 0;
+      const paddingBottom = parseFloat(computed.paddingBottom) || 0;
+      const borderTop = parseFloat(computed.borderTopWidth) || 0;
+      const borderBottom = parseFloat(computed.borderBottomWidth) || 0;
+      originalHeight =
+        primaryRect.height -
+        paddingTop -
+        paddingBottom -
+        borderTop -
+        borderBottom;
     }
 
-    // Clone the primary editor
+    // 2. Find parent container
+    const parent = findNearestAncestor(primaryEditor);
+    const parentRect = parent.getBoundingClientRect();
+
+    // 3. Calculate offset from parent
+    const topOffset = primaryRect.top - parentRect.top;
+    const leftOffset = primaryRect.left - parentRect.left;
+
+    // 4. Create spacer to prevent parent collapse
+    spacerElement = document.createElement("div");
+    spacerElement.id = "primary-editor-spacer";
+    spacerElement.style.width = primaryRect.width + "px";
+    spacerElement.style.height = primaryRect.height + "px";
+    spacerElement.style.visibility = "hidden"; // Invisible but takes space
+    spacerElement.style.pointerEvents = "none";
+
+    // Insert spacer before primary
+    parent.insertBefore(spacerElement, primaryEditor);
+
+    // 5. Make parent positioned if needed
+    const parentComputed = window.getComputedStyle(parent);
+    if (parentComputed.position === "static") {
+      parent.style.position = "relative";
+      positionedAncestor = parent;
+      console.log("Made parent positioned (relative)");
+    }
+
+    // 6. Store original position for restoration
+    originalPrimaryPosition = currentPosition;
+
+    // 7. Make primary absolutely positioned with calculated offset
+    primaryEditor.style.position = "absolute";
+    primaryEditor.style.top = topOffset + "px";
+    primaryEditor.style.left = leftOffset + "px";
+    primaryEditor.style.width = originalWidth + "px";
+    primaryEditor.style.height = originalHeight + "px";
+    primaryEditor.style.zIndex = "2"; // On top
+    primaryEditor.style.backgroundColor = "transparent";
+
+    // 8. Create and position clone
     cloneEditor = primaryEditor.cloneNode(true);
     cloneEditor.id = "clone-editor";
     cloneEditor.contentEditable = "false"; // Display-only
@@ -139,30 +178,44 @@ document.addEventListener("DOMContentLoaded", function () {
     // Copy all visual computed styles
     copyAllVisualStyles(primaryEditor, cloneEditor);
 
-    // Position clone absolutely below primary
+    // Position clone identically to primary
     cloneEditor.style.position = "absolute";
-    cloneEditor.style.top = "0";
-    cloneEditor.style.left = "0";
+    cloneEditor.style.top = topOffset + "px";
+    cloneEditor.style.left = leftOffset + "px";
+    cloneEditor.style.width = originalWidth + "px";
+    cloneEditor.style.height = originalHeight + "px";
     cloneEditor.style.zIndex = "1"; // Below primary
 
-    // Set clone's background to the original background color
+    // Transparency setup
     cloneEditor.style.backgroundColor = originalBgColor;
+    cloneEditor.style.color = originalBgColor; // Hide text
 
-    // Hide clone's text by setting text color same as background
-    cloneEditor.style.color = originalBgColor;
-
-    // Make primary editor background transparent (so we can see through to clone)
-    primaryEditor.style.backgroundColor = "transparent";
-    primaryEditor.style.zIndex = "2"; // On top
-
-    // Insert clone before primary in the container
-    const parent = primaryEditor.parentNode;
+    // Insert clone before primary
     parent.insertBefore(cloneEditor, primaryEditor);
 
-    // // Set up scroll sync for clone
-    // cloneEditor.addEventListener("scroll", handleCloneScroll);
+    // 9. Set up ResizeObserver to handle resize
+    // resizeObserver = new ResizeObserver((entries) => {
+    //   for (let entry of entries) {
+    //     const newWidth = entry.contentRect.width;
+    //     const newHeight = entry.contentRect.height;
 
-    // Initial sync
+    //     console.log("Primary resized:", { newWidth, newHeight });
+
+    //     // Update primary
+    //     primaryEditor.style.width = newWidth + "px";
+    //     primaryEditor.style.height = newHeight + "px";
+
+    //     // Update clone
+    //     if (cloneEditor) {
+    //       cloneEditor.style.width = newWidth + "px";
+    //       cloneEditor.style.height = newHeight + "px";
+    //     }
+    //   }
+    // });
+
+    // resizeObserver.observe(spacerElement);
+
+    // 10. Initial content sync
     updateClone();
 
     console.log("Clone editor created with transparent overlay effect");
@@ -194,12 +247,28 @@ document.addEventListener("DOMContentLoaded", function () {
   function removeCloneEditor() {
     if (!cloneEditor) return;
 
-    // Remove clone from DOM
-    // cloneEditor.removeEventListener("scroll", handleCloneScroll);
+    console.log("Removing clone editor and restoring state");
+
+    // 1. Disconnect ResizeObserver
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+      console.log("ResizeObserver disconnected");
+    }
+
+    // 2. Remove spacer element
+    if (spacerElement) {
+      spacerElement.remove();
+      spacerElement = null;
+      console.log("Spacer removed");
+    }
+
+    // 3. Remove clone
     cloneEditor.remove();
     cloneEditor = null;
+    console.log("Clone removed");
 
-    // Restore primary editor's original position if we changed it
+    // 4. Restore primary editor's original position
     if (originalPrimaryPosition !== null) {
       primaryEditor.style.position = originalPrimaryPosition;
       primaryEditor.style.top = "";
@@ -207,13 +276,21 @@ document.addEventListener("DOMContentLoaded", function () {
       primaryEditor.style.width = "";
       primaryEditor.style.height = "";
       originalPrimaryPosition = null;
+      console.log("Primary position restored");
     }
 
-    // Restore primary editor's background
+    // 5. Restore primary editor's background and z-index
     primaryEditor.style.backgroundColor = "";
     primaryEditor.style.zIndex = "";
 
-    console.log("Clone editor removed");
+    // 6. Restore parent's position if we changed it
+    if (positionedAncestor) {
+      // Note: We leave parent as positioned since other content might depend on it
+      // Only clear our reference
+      positionedAncestor = null;
+    }
+
+    console.log("Clone editor removed and state restored");
   }
 
   // Scroll handler for clone
@@ -247,7 +324,8 @@ document.addEventListener("DOMContentLoaded", function () {
       "borderRadius",
       "boxSizing",
       "overflowY",
-      "overflowX"
+      "overflowX",
+      "border"
     ];
 
     visualProps.forEach((prop) => {
