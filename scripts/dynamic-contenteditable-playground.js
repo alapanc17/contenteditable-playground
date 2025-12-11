@@ -93,6 +93,31 @@ document.addEventListener("DOMContentLoaded", function () {
     characterData: true
   });
 
+  // Calculate adjusted dimensions based on box-sizing model
+  function calculateAdjustedDimensions(computed, width, height) {
+    const boxSizing = computed.boxSizing;
+    let adjustedWidth = width;
+    let adjustedHeight = height;
+
+    if (boxSizing === "content-box") {
+      const paddingLeft = parseFloat(computed.paddingLeft) || 0;
+      const paddingRight = parseFloat(computed.paddingRight) || 0;
+      const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
+      const borderRight = parseFloat(computed.borderRightWidth) || 0;
+      adjustedWidth =
+        width - paddingLeft - paddingRight - borderLeft - borderRight;
+
+      const paddingTop = parseFloat(computed.paddingTop) || 0;
+      const paddingBottom = parseFloat(computed.paddingBottom) || 0;
+      const borderTop = parseFloat(computed.borderTopWidth) || 0;
+      const borderBottom = parseFloat(computed.borderBottomWidth) || 0;
+      adjustedHeight =
+        height - paddingTop - paddingBottom - borderTop - borderBottom;
+    }
+
+    return { width: adjustedWidth, height: adjustedHeight };
+  }
+
   // Create clone on focus (ensures element is fully rendered)
   function createCloneEditor() {
     if (cloneEditor) return; // Already created
@@ -103,37 +128,21 @@ document.addEventListener("DOMContentLoaded", function () {
     const originalBgColor = computed.backgroundColor;
     const currentPosition = computed.position;
 
-    const boxSizing = computed.boxSizing;
-    let originalWidth = primaryRect.width;
-    let originalHeight = primaryRect.height;
-
-    if (boxSizing === "content-box") {
-      const paddingLeft = parseFloat(computed.paddingLeft) || 0;
-      const paddingRight = parseFloat(computed.paddingRight) || 0;
-      const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
-      const borderRight = parseFloat(computed.borderRightWidth) || 0;
-      originalWidth =
-        primaryRect.width -
-        paddingLeft -
-        paddingRight -
-        borderLeft -
-        borderRight;
-
-      const paddingTop = parseFloat(computed.paddingTop) || 0;
-      const paddingBottom = parseFloat(computed.paddingBottom) || 0;
-      const borderTop = parseFloat(computed.borderTopWidth) || 0;
-      const borderBottom = parseFloat(computed.borderBottomWidth) || 0;
-      originalHeight =
-        primaryRect.height -
-        paddingTop -
-        paddingBottom -
-        borderTop -
-        borderBottom;
-    }
+    // Calculate dimensions adjusted for box-sizing
+    const adjustedDimensions = calculateAdjustedDimensions(
+      computed,
+      primaryRect.width,
+      primaryRect.height
+    );
+    const originalWidth = adjustedDimensions.width;
+    const originalHeight = adjustedDimensions.height;
 
     // 2. Find parent container
     const parent = findNearestAncestor(primaryEditor);
     const parentRect = parent.getBoundingClientRect();
+
+    const widthRatio = primaryRect.width / parentRect.width;
+    const heightRatio = primaryRect.height / parentRect.height;
 
     // 3. Calculate offset from parent
     const topOffset = primaryRect.top - parentRect.top;
@@ -194,26 +203,33 @@ document.addEventListener("DOMContentLoaded", function () {
     parent.insertBefore(cloneEditor, primaryEditor);
 
     // 9. Set up ResizeObserver to handle resize
-    // resizeObserver = new ResizeObserver((entries) => {
-    //   for (let entry of entries) {
-    //     const newWidth = entry.contentRect.width;
-    //     const newHeight = entry.contentRect.height;
+    resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const newWidth = parseInt(entry.contentRect.width * widthRatio);
+        const newHeight = parseInt(entry.contentRect.height * heightRatio);
 
-    //     console.log("Primary resized:", { newWidth, newHeight });
+        spacerElement.style.width = newWidth + "px";
+        spacerElement.style.height = newHeight + "px";
 
-    //     // Update primary
-    //     primaryEditor.style.width = newWidth + "px";
-    //     primaryEditor.style.height = newHeight + "px";
+        const adjustedDimensions = calculateAdjustedDimensions(
+          computed,
+          newWidth,
+          newHeight
+        );
 
-    //     // Update clone
-    //     if (cloneEditor) {
-    //       cloneEditor.style.width = newWidth + "px";
-    //       cloneEditor.style.height = newHeight + "px";
-    //     }
-    //   }
-    // });
+        // Update primary
+        primaryEditor.style.width = adjustedDimensions.width + "px";
+        primaryEditor.style.height = adjustedDimensions.height + "px";
 
-    // resizeObserver.observe(spacerElement);
+        // Update clone
+        if (cloneEditor) {
+          cloneEditor.style.width = adjustedDimensions.width + "px";
+          cloneEditor.style.height = adjustedDimensions.height + "px";
+        }
+      }
+    });
+
+    resizeObserver.observe(parent);
 
     // 10. Initial content sync
     updateClone();
@@ -340,8 +356,12 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateClone(compositionText = null) {
     if (!cloneEditor) return;
 
+    // Create a range covering just the contents of src
+    const range = document.createRange();
+    range.selectNodeContents(primaryEditor);
+
     // Clone the primary editor's content
-    const clonedContent = primaryEditor.cloneNode(true);
+    const clonedContent = range.cloneContents();
 
     // Copy computed styles for elements with IDs (before stripping)
     clonedContent.querySelectorAll("[id]").forEach((clonedEl) => {
@@ -360,8 +380,7 @@ document.addEventListener("DOMContentLoaded", function () {
       applyCompositionHighlight(compositionText, clonedContent);
     }
 
-    // Update clone's innerHTML
-    cloneEditor.innerHTML = clonedContent.innerHTML;
+    cloneEditor.replaceChildren(clonedContent);
   }
 
   // Apply composition highlighting to cloned content
@@ -442,7 +461,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function insertMarkedParagraph() {
     const p = document.createElement("p");
     p.id = "marked-text";
-    p.textContent = "Testing dynamic content styling with ID";
+    p.innerHTML = `Testing dynamic content styling with ID.`;
 
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
@@ -451,6 +470,7 @@ document.addEventListener("DOMContentLoaded", function () {
       range.insertNode(p);
       range.setStartAfter(p);
       range.setEndAfter(p);
+      range.collapse(true);
       selection.removeAllRanges();
       selection.addRange(range);
     } else {
@@ -459,9 +479,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     primaryEditor.focus();
   }
-
-  // Initialize - no need to create clone on page load
-  // Clone will be created on first focus
 
   // Make functions globally accessible
   window.clearEditor = clearEditor;
