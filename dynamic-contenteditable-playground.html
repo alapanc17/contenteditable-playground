@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic ContentEditable Playground</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      h1 {
+        color: #333;
+      }
+      p.description {
+        color: #666;
+        margin-bottom: 30px;
+      }
+
+      /* Container for overlaid editors */
+      .editor-container {
+        position: relative;
+        width: 100%;
+        height: 500px;
+        margin: 20px 0;
+      }
+
+      /* Primary editor styles */
+      #primary-editor {
+        /* Position will be set dynamically on focus */
+        padding: 20px;
+        border: 2px solid #007bff;
+        border-radius: 8px;
+        background-color: #fff;
+        overflow-y: auto;
+        outline: none;
+        cursor: text;
+        font-family: inherit;
+        line-height: 1.6;
+        min-height: 400px;
+      }
+
+      /* Clone will be styled dynamically via JavaScript */
+      #clone-editor {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+      }
+
+      .controls {
+        margin: 20px 0;
+      }
+
+      button {
+        padding: 10px 15px;
+        margin-right: 10px;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+      }
+
+      button:hover {
+        background-color: #0056b3;
+      }
+
+      a {
+        display: inline-block;
+        margin-top: 20px;
+        color: #0066cc;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      /* ID selector for testing */
+      #marked-text {
+        background-color: #ffeb3b;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+    <script
+      type="module"
+      src="./scripts/dynamic-contenteditable-playground.js"
+    ></script>
+  </head>
+  <body>
+    <h1>Dynamic ContentEditable Playground</h1>
+    <p class="description">
+      The clone editor is created dynamically on page load and positioned behind
+      the primary editor. Type to see composition highlighting appear below!
+    </p>
+
+    <div class="controls">
+      <button onclick="clearEditor()">Clear Content</button>
+      <button onclick="insertMarkedParagraph()">
+        Insert Marked Paragraph (ID Test)
+      </button>
+    </div>
+
+    <div class="editor-container">
+      <div id="primary-editor" contenteditable="true">
+        <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+          eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
+          minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+          aliquip ex ea commodo consequat.
+        </p>
+
+        <p>
+          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+          dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
+          proident, sunt in culpa qui officia deserunt mollit anim id est
+          laborum.
+        </p>
+
+        <p>
+          Sed ut perspiciatis unde omnis iste natus error sit voluptatem
+          accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae
+          ab illo inventore veritatis et quasi architecto beatae vitae dicta
+          sunt explicabo.
+        </p>
+
+        <p>
+          Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut
+          fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem
+          sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor
+          sit amet.
+        </p>
+      </div>
+      <!-- Clone will be inserted here dynamically -->
+    </div>
+
+    <a href="index.html">← Back to Demo Page</a>
+  </body>
+</html>
