@@ -37,6 +37,31 @@ export function copyComputedStyles(sourceElement, targetElement) {
   });
 }
 
+// Calculate adjusted dimensions based on box-sizing model
+export function calculateAdjustedDimensions(computed, width, height) {
+  const boxSizing = computed.boxSizing;
+  let adjustedWidth = width;
+  let adjustedHeight = height;
+
+  if (boxSizing === "content-box") {
+    const paddingLeft = parseFloat(computed.paddingLeft) || 0;
+    const paddingRight = parseFloat(computed.paddingRight) || 0;
+    const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
+    const borderRight = parseFloat(computed.borderRightWidth) || 0;
+    adjustedWidth =
+      width - paddingLeft - paddingRight - borderLeft - borderRight;
+
+    const paddingTop = parseFloat(computed.paddingTop) || 0;
+    const paddingBottom = parseFloat(computed.paddingBottom) || 0;
+    const borderTop = parseFloat(computed.borderTopWidth) || 0;
+    const borderBottom = parseFloat(computed.borderBottomWidth) || 0;
+    adjustedHeight =
+      height - paddingTop - paddingBottom - borderTop - borderBottom;
+  }
+
+  return { width: adjustedWidth, height: adjustedHeight };
+}
+
 // Helper function to get the path to a node
 export function getNodePath(node, root) {
   const path = [];
@@ -67,4 +92,39 @@ export function getNodeByPath(path, root) {
   }
 
   return current;
+}
+
+// Find nearest block-level ancestor that can serve as positioning context
+export function findNearestAncestor(element) {
+  let parent = element.parentNode;
+
+  // Traverse up until we find a suitable container
+  while (parent && parent !== document.body) {
+    const computed = window.getComputedStyle(parent);
+    const display = computed.display;
+
+    // Look for block-level elements (div, section, main, etc.)
+    if (display === "block" || display === "flex" || display === "grid") {
+      return parent;
+    }
+
+    parent = parent.parentNode;
+  }
+
+  // Fallback to direct parent if no block-level ancestor found
+  return element.parentNode;
+}
+
+export function onlyToggledSpecialClass(oldClass, newClass, special) {
+  const oldSet = new Set(oldClass.split(/\s+/).filter(Boolean));
+  const newSet = new Set(newClass.split(/\s+/).filter(Boolean));
+
+  const added = [...newSet].filter((c) => !oldSet.has(c));
+  const removed = [...oldSet].filter((c) => !newSet.has(c));
+
+  // Ignore if the delta is exactly [+special] or [-special]
+  return (
+    (added.length === 1 && added[0] === special && removed.length === 0) ||
+    (removed.length === 1 && removed[0] === special && added.length === 0)
+  );
 }

@@ -1,5 +1,12 @@
 // Import shared helper functions
-import { copyComputedStyles, getNodePath, getNodeByPath } from "./utils.js";
+import {
+  copyComputedStyles,
+  calculateAdjustedDimensions,
+  getNodePath,
+  getNodeByPath,
+  onlyToggledSpecialClass,
+  findNearestAncestor
+} from "./utils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   // State variables
@@ -69,10 +76,30 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // MutationObserver with RAF throttling
-  const observer = new MutationObserver(function (mutations) {
+  const observer = new MutationObserver(function (records) {
+    let validMutations = 0;
     if (rafId) {
       cancelAnimationFrame(rafId);
     }
+
+    for (const r of records) {
+      // We only want to special-handle attribute mutations on class
+      if (r.type === "attributes" && r.attributeName === "class") {
+        const el = r.target;
+
+        const oldClass = r.oldValue ?? "";
+        const newClass = el.getAttribute("class") ?? "";
+
+        // If the only class delta is SPECIAL, ignore
+        if (onlyToggledSpecialClass(oldClass, newClass, "overlay-mode")) {
+          continue;
+        }
+      }
+
+      validMutations++;
+    }
+
+    if (validMutations === 0) return;
 
     rafId = requestAnimationFrame(() => {
       if (isComposing) {
@@ -92,31 +119,6 @@ document.addEventListener("DOMContentLoaded", function () {
     attributes: true,
     characterData: true
   });
-
-  // Calculate adjusted dimensions based on box-sizing model
-  function calculateAdjustedDimensions(computed, width, height) {
-    const boxSizing = computed.boxSizing;
-    let adjustedWidth = width;
-    let adjustedHeight = height;
-
-    if (boxSizing === "content-box") {
-      const paddingLeft = parseFloat(computed.paddingLeft) || 0;
-      const paddingRight = parseFloat(computed.paddingRight) || 0;
-      const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
-      const borderRight = parseFloat(computed.borderRightWidth) || 0;
-      adjustedWidth =
-        width - paddingLeft - paddingRight - borderLeft - borderRight;
-
-      const paddingTop = parseFloat(computed.paddingTop) || 0;
-      const paddingBottom = parseFloat(computed.paddingBottom) || 0;
-      const borderTop = parseFloat(computed.borderTopWidth) || 0;
-      const borderBottom = parseFloat(computed.borderBottomWidth) || 0;
-      adjustedHeight =
-        height - paddingTop - paddingBottom - borderTop - borderBottom;
-    }
-
-    return { width: adjustedWidth, height: adjustedHeight };
-  }
 
   // Create clone on focus (ensures element is fully rendered)
   function createCloneEditor() {
@@ -140,7 +142,6 @@ document.addEventListener("DOMContentLoaded", function () {
     // 2. Find parent container
     const parent = findNearestAncestor(primaryEditor);
     const parentRect = parent.getBoundingClientRect();
-
     const widthRatio = primaryRect.width / parentRect.width;
     const heightRatio = primaryRect.height / parentRect.height;
 
@@ -170,22 +171,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // 6. Store original position for restoration
     originalPrimaryPosition = currentPosition;
 
-    // 7. Make primary absolutely positioned with calculated offset
-    primaryEditor.style.position = "absolute";
-    primaryEditor.style.top = topOffset + "px";
-    primaryEditor.style.left = leftOffset + "px";
-    primaryEditor.style.width = originalWidth + "px";
-    primaryEditor.style.height = originalHeight + "px";
-    primaryEditor.style.zIndex = "2"; // On top
-    primaryEditor.style.backgroundColor = "transparent";
-
-    // 8. Create and position clone
+    // 7. Create and position clone
     cloneEditor = primaryEditor.cloneNode(true);
     cloneEditor.id = "clone-editor";
     cloneEditor.contentEditable = "false"; // Display-only
-
-    // Copy all visual computed styles
-    copyAllVisualStyles(primaryEditor, cloneEditor);
 
     // Position clone identically to primary
     cloneEditor.style.position = "absolute";
@@ -195,9 +184,21 @@ document.addEventListener("DOMContentLoaded", function () {
     cloneEditor.style.height = originalHeight + "px";
     cloneEditor.style.zIndex = "1"; // Below primary
 
+    // Copy all visual computed styles
+    copyAllVisualStyles(primaryEditor, cloneEditor);
+
+    // 8. Make primary absolutely positioned with calculated offset
+    primaryEditor.style.position = "absolute";
+    primaryEditor.style.top = topOffset + "px";
+    primaryEditor.style.left = leftOffset + "px";
+    primaryEditor.style.width = originalWidth + "px";
+    primaryEditor.style.height = originalHeight + "px";
+    primaryEditor.style.zIndex = "2"; // On top;
+
     // Transparency setup
     cloneEditor.style.backgroundColor = originalBgColor;
     cloneEditor.style.color = originalBgColor; // Hide text
+    primaryEditor.classList.add("overlay-mode"); // Instead of inline style
 
     // Insert clone before primary
     parent.insertBefore(cloneEditor, primaryEditor);
@@ -238,27 +239,6 @@ document.addEventListener("DOMContentLoaded", function () {
     console.log("Original background color:", originalBgColor);
   }
 
-  // Find nearest block-level ancestor that can serve as positioning context
-  function findNearestAncestor(element) {
-    let parent = element.parentNode;
-
-    // Traverse up until we find a suitable container
-    while (parent && parent !== document.body) {
-      const computed = window.getComputedStyle(parent);
-      const display = computed.display;
-
-      // Look for block-level elements (div, section, main, etc.)
-      if (display === "block" || display === "flex" || display === "grid") {
-        return parent;
-      }
-
-      parent = parent.parentNode;
-    }
-
-    // Fallback to direct parent if no block-level ancestor found
-    return element.parentNode;
-  }
-
   // Remove clone on blur
   function removeCloneEditor() {
     if (!cloneEditor) return;
@@ -296,7 +276,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // 5. Restore primary editor's background and z-index
-    primaryEditor.style.backgroundColor = "";
+    primaryEditor.classList.remove("overlay-mode"); // Instead of inline style
     primaryEditor.style.zIndex = "";
 
     // 6. Restore parent's position if we changed it
@@ -308,14 +288,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     console.log("Clone editor removed and state restored");
   }
-
-  // Scroll handler for clone
-  // function handleCloneScroll() {
-  //   if (cloneEditor) {
-  //     primaryEditor.scrollTop = cloneEditor.scrollTop;
-  //     primaryEditor.scrollLeft = cloneEditor.scrollLeft;
-  //   }
-  // }
 
   // Copy all visual computed styles from source to target
   function copyAllVisualStyles(source, target) {
@@ -356,6 +328,9 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateClone(compositionText = null) {
     if (!cloneEditor) return;
 
+    // Remove overlay-mode temporarily
+    primaryEditor.classList.remove("overlay-mode");
+
     // Create a range covering just the contents of src
     const range = document.createRange();
     range.selectNodeContents(primaryEditor);
@@ -363,22 +338,32 @@ document.addEventListener("DOMContentLoaded", function () {
     // Clone the primary editor's content
     const clonedContent = range.cloneContents();
 
-    // Copy computed styles for elements with IDs (before stripping)
-    clonedContent.querySelectorAll("[id]").forEach((clonedEl) => {
-      const sourceEl = primaryEditor.querySelector(
-        "#" + CSS.escape(clonedEl.id)
-      );
-      if (sourceEl) {
-        copyComputedStyles(sourceEl, clonedEl);
+    // Merged operation: Copy backgrounds for ALL elements + extra styles for IDs
+    const primaryElements = primaryEditor.querySelectorAll("*");
+    const clonedElements = clonedContent.querySelectorAll("*");
+
+    primaryElements.forEach((primaryEl, index) => {
+      const clonedEl = clonedElements[index];
+      if (!clonedEl) return;
+
+      // 1. If element has ID, copy additional computed styles
+      if (clonedEl.hasAttribute("id")) {
+        copyComputedStyles(primaryEl, clonedEl);
+        clonedEl.removeAttribute("id"); // Strip ID after copying
       }
-      // Strip ID to avoid duplicates
-      clonedEl.removeAttribute("id");
+
+      // 2. Copy background and color for ALL elements
+      const computed = window.getComputedStyle(primaryEl);
+      clonedEl.style.backgroundColor = computed.backgroundColor;
+      clonedEl.style.color = computed.backgroundColor; // Hide text
     });
 
     // Apply composition highlighting if active
     if (isComposing && compositionText && compositionStartPath) {
       applyCompositionHighlight(compositionText, clonedContent);
     }
+
+    primaryEditor.classList.add("overlay-mode");
 
     cloneEditor.replaceChildren(clonedContent);
   }
