@@ -124,7 +124,17 @@ export function onlyToggledSpecialClass(oldClass, newClass, special) {
 
   // Ignore if the delta is exactly [+special] or [-special]
   return (
-    (added.length === 1 && added[0] === special && removed.length === 0) ||
-    (removed.length === 1 && removed[0] === special && added.length === 0)
+    (added.length >= 1 && added.includes(special) && removed.length === 0) ||
+    (removed.length >= 1 && removed.includes(special) && added.length === 0)
   );
+}
+
+// Apply custom css to an editor element
+export function applyCustomCSS(element, styles) {
+  Object.entries(styles).forEach(([property, value]) => {
+    // Add 'px' suffix for numeric values (except zIndex)
+    const formattedValue =
+      typeof value === "number" && property !== "zIndex" ? `${value}px` : value;
+    element.style[property] = formattedValue;
+  });
 }

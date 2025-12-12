@@ -5,7 +5,8 @@ import {
   getNodePath,
   getNodeByPath,
   onlyToggledSpecialClass,
-  findNearestAncestor
+  findNearestAncestor,
+  applyCustomCSS
 } from "./utils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -171,18 +172,30 @@ document.addEventListener("DOMContentLoaded", function () {
     // 6. Store original position for restoration
     originalPrimaryPosition = currentPosition;
 
-    // 7. Create and position clone
+    // 7. Make primary absolutely positioned with calculated offset
+    applyCustomCSS(primaryEditor, {
+      position: "absolute",
+      top: topOffset,
+      left: leftOffset,
+      width: originalWidth,
+      height: originalHeight,
+      zIndex: "2" // On top
+    });
+
+    // 8. Create and position clone
     cloneEditor = primaryEditor.cloneNode(true);
     cloneEditor.id = "clone-editor";
     cloneEditor.contentEditable = "false"; // Display-only
 
     // Position clone identically to primary
-    cloneEditor.style.position = "absolute";
-    cloneEditor.style.top = topOffset + "px";
-    cloneEditor.style.left = leftOffset + "px";
-    cloneEditor.style.width = originalWidth + "px";
-    cloneEditor.style.height = originalHeight + "px";
-    cloneEditor.style.zIndex = "1"; // Below primary
+    applyCustomCSS(cloneEditor, {
+      position: "absolute",
+      top: topOffset,
+      left: leftOffset,
+      width: originalWidth,
+      height: originalHeight,
+      zIndex: "1" // Below primary
+    });
 
     // Copy all visual computed styles
     copyAllVisualStyles(primaryEditor, cloneEditor);
