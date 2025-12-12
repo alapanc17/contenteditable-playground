@@ -198,6 +198,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // 2. Find parent container
     const parent = findNearestAncestor(primaryEditor);
     const parentRect = parent.getBoundingClientRect();
+    // This ratio helps maintain size relative to parent on resize(border-box)
     const widthRatio = primaryRect.width / parentRect.width;
     const heightRatio = primaryRect.height / parentRect.height;
 
@@ -266,8 +267,19 @@ document.addEventListener("DOMContentLoaded", function () {
     // 9. Set up ResizeObserver to handle resize
     resizeObserver = new ResizeObserver((entries) => {
       for (let entry of entries) {
-        const newWidth = parseInt(entry.contentRect.width * widthRatio);
-        const newHeight = parseInt(entry.contentRect.height * heightRatio);
+        const parentComputed = window.getComputedStyle(parent);
+        // Calculate adjusted parent dimensions (border-box)
+        const adjustedParentDimensions = calculateAdjustedDimensions(
+          parentComputed,
+          entry.contentRect.width,
+          entry.contentRect.height,
+          false
+        );
+
+        const newWidth = parseInt(adjustedParentDimensions.width * widthRatio);
+        const newHeight = parseInt(
+          adjustedParentDimensions.height * heightRatio
+        );
 
         spacerElement.style.width = newWidth + "px";
         spacerElement.style.height = newHeight + "px";
@@ -474,7 +486,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
           // Create highlighted span
           const span = document.createElement("span");
-          span.style.paddingBottom = "5px";
           span.style.borderBottom = "2px dashed #007bff";
           span.textContent = composingText;
 
@@ -489,7 +500,6 @@ document.addEventListener("DOMContentLoaded", function () {
       } else if (parent && !textNode) {
         // Empty element - create span directly
         const span = document.createElement("span");
-        span.style.paddingBottom = "5px";
         span.style.borderBottom = "2px dashed #007bff";
         span.textContent = compositionText;
         parent.appendChild(span);

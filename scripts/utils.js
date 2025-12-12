@@ -38,25 +38,34 @@ export function copyComputedStyles(sourceElement, targetElement) {
 }
 
 // Calculate adjusted dimensions based on box-sizing model
-export function calculateAdjustedDimensions(computed, width, height) {
+// If contentOnly is true, returns content-box dimensions
+// If false, returns border-box dimensions
+export function calculateAdjustedDimensions(
+  computed,
+  width,
+  height,
+  contentOnly = true
+) {
   const boxSizing = computed.boxSizing;
   let adjustedWidth = width;
   let adjustedHeight = height;
 
-  if (boxSizing === "content-box") {
-    const paddingLeft = parseFloat(computed.paddingLeft) || 0;
-    const paddingRight = parseFloat(computed.paddingRight) || 0;
-    const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
-    const borderRight = parseFloat(computed.borderRightWidth) || 0;
-    adjustedWidth =
-      width - paddingLeft - paddingRight - borderLeft - borderRight;
+  const factor = contentOnly ? -1 : 1;
 
-    const paddingTop = parseFloat(computed.paddingTop) || 0;
-    const paddingBottom = parseFloat(computed.paddingBottom) || 0;
+  if (boxSizing === "content-box") {
+    const paddingLeft = (parseFloat(computed.paddingLeft) || 0) * factor;
+    const paddingRight = (parseFloat(computed.paddingRight) || 0) * factor;
+    const borderLeft = (parseFloat(computed.borderLeftWidth) || 0) * factor;
+    const borderRight = (parseFloat(computed.borderRightWidth) || 0) * factor;
+    adjustedWidth =
+      width + paddingLeft + paddingRight + borderLeft + borderRight;
+
+    const paddingTop = (parseFloat(computed.paddingTop) || 0) * factor;
+    const paddingBottom = (parseFloat(computed.paddingBottom) || 0) * factor;
     const borderTop = parseFloat(computed.borderTopWidth) || 0;
-    const borderBottom = parseFloat(computed.borderBottomWidth) || 0;
+    const borderBottom = (parseFloat(computed.borderBottomWidth) || 0) * factor;
     adjustedHeight =
-      height - paddingTop - paddingBottom - borderTop - borderBottom;
+      height + paddingTop + paddingBottom + borderTop + borderBottom;
   }
 
   return { width: adjustedWidth, height: adjustedHeight };
