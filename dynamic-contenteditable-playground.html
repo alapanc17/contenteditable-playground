@@ -29,8 +29,7 @@
       }
 
       /* Primary editor styles */
-      #primary-editor {
-        /* Position will be set dynamically on focus */
+      /* #primary-editor {
         padding: 20px;
         border: 2px solid #007bff;
         border-radius: 8px;
@@ -43,8 +42,10 @@
         font-family: inherit;
         line-height: 1.6;
       }
-      #primary-editor.overlay-mode,
-      #primary-editor.overlay-mode * {
+      */
+
+      [contenteditable="true"].overlay-mode,
+      [contenteditable="true"].overlay-mode * {
         background-color: transparent !important;
       }
 
@@ -93,6 +94,126 @@
         font-weight: 500;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
+
+      input[type="text"],
+      textarea,
+      .editable-div {
+        display: block;
+        padding: 12px 15px;
+        font-size: 16px;
+        font-family: inherit;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        background-color: white;
+      }
+
+      input[type="text"]:focus,
+      textarea:focus,
+      .editable-div:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+      }
+
+      input[type="text"]:hover,
+      textarea:hover,
+      .editable-div:hover {
+        border-color: #b0b0b0;
+      }
+
+      .editable-div {
+        min-height: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+        line-height: 1.5;
+        cursor: text;
+      }
+
+      .editable-div:empty:before {
+        content: attr(data-placeholder);
+        color: #999;
+      }
+
+      /* Widget */
+      .widget {
+        margin: 15px 0;
+        padding: 15px;
+        background-color: #fff;
+        border: 2px solid #9c27b0;
+        border-radius: 8px;
+        cursor: default;
+      }
+
+      .widget strong {
+        display: block;
+        margin-bottom: 10px;
+        color: #9c27b0;
+        font-size: 14px;
+      }
+
+      .widget-content {
+        padding: 10px;
+        background-color: #f3e5f5;
+        border: 1px dashed #9c27b0;
+        border-radius: 4px;
+        cursor: text;
+        min-height: 40px;
+      }
+
+      .widget-content:focus {
+        background-color: #e1bee7;
+        outline: none;
+      }
+
+      /* Rich Editor */
+      .rich-editor {
+        min-height: 200px;
+      }
+
+      .rich-editor p {
+        margin: 10px 0;
+      }
+
+      .rich-editor ul {
+        margin: 10px 0;
+        padding-left: 25px;
+      }
+
+      .rich-editor li {
+        margin: 5px 0;
+      }
+
+      /* Mentions and Tags (contenteditable="false" pills) */
+      .mention,
+      .tag {
+        display: inline-block;
+        padding: 2px 8px;
+        margin: 0 2px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: default;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .mention {
+        background-color: #e3f2fd;
+        color: #1976d2;
+        border: 1px solid #90caf9;
+      }
+
+      .tag {
+        background-color: #f3e5f5;
+        color: #7b1fa2;
+        border: 1px solid #ce93d8;
+      }
+
+      .mention:hover,
+      .tag:hover {
+        opacity: 0.8;
+      }
     </style>
     <script
       type="module"
@@ -114,7 +235,7 @@
     </div>
 
     <div class="editor-container">
-      <div id="primary-editor" contenteditable="true">
+      <!-- <div id="primary-editor" contenteditable="true">
         <p>
           Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
           eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
@@ -150,6 +271,33 @@
           nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo
           voluptas nulla pariatur.
         </p>
+      </div> -->
+      <h3>5. Complex Example: Simulated Rich Editor</h3>
+      <div
+        class="editable-div rich-editor"
+        id="primary-editor"
+        contenteditable="true"
+      >
+        <p>
+          Welcome to our meeting! Attendees:
+          <span class="mention" contenteditable="false">@alice</span>
+          <span class="mention" contenteditable="false">@bob</span>
+        </p>
+        <p>Topics to discuss:</p>
+        <ul>
+          <li>
+            Project status
+            <span class="tag" contenteditable="false">#urgent</span>
+          </li>
+          <li>Budget review</li>
+        </ul>
+        <div class="widget" contenteditable="false">
+          <strong>📊 Embedded Widget (Non-editable)</strong>
+          <div class="widget-content" contenteditable="true">
+            But you can edit content inside this widget!
+          </div>
+        </div>
+        <p>Continue typing here after the widget...</p>
       </div>
       <!-- Clone will be inserted here dynamically -->
     </div>
