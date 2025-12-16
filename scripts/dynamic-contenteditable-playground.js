@@ -222,6 +222,8 @@ document.addEventListener("DOMContentLoaded", function () {
     spacerElement.style.height = primaryRect.height + "px";
     spacerElement.style.visibility = "hidden"; // Invisible but takes space
     spacerElement.style.pointerEvents = "none";
+    spacerElement.style.display = "block";
+    spacerElement.style.overflow = "hidden";
 
     // Insert spacer before primary
     parent.insertBefore(spacerElement, primaryEditor);
@@ -244,6 +246,7 @@ document.addEventListener("DOMContentLoaded", function () {
       left: leftOffset,
       width: originalWidth,
       height: originalHeight,
+      margin: "0",
       zIndex: "2" // On top
     });
 
@@ -259,6 +262,7 @@ document.addEventListener("DOMContentLoaded", function () {
       left: leftOffset,
       width: originalWidth,
       height: originalHeight,
+      margin: "0",
       zIndex: "1" // Below primary
     });
 
@@ -348,6 +352,7 @@ document.addEventListener("DOMContentLoaded", function () {
       primaryEditor.style.left = "";
       primaryEditor.style.width = "";
       primaryEditor.style.height = "";
+      primaryEditor.style.margin = ""; // Restore original margin
       originalPrimaryPosition = null;
       console.log("Primary position restored");
     }
@@ -455,8 +460,12 @@ document.addEventListener("DOMContentLoaded", function () {
       let textNode = targetNode;
       let parent = null;
 
-      // Handle element node vs text node
-      if (targetNode.nodeType === Node.ELEMENT_NODE) {
+      // Handle document fragment, element node, or text node
+      if (
+        targetNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE ||
+        targetNode.nodeType === Node.ELEMENT_NODE
+      ) {
+        // DocumentFragment or Element - look for text nodes in children
         if (range && range.startOffset < targetNode.childNodes.length) {
           const childNode = targetNode.childNodes[range.startOffset];
           if (childNode && childNode.nodeType === Node.TEXT_NODE) {
