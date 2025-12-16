@@ -6,7 +6,8 @@ import {
   getNodeByPath,
   onlyToggledSpecialClass,
   findNearestAncestor,
-  applyCustomCSS
+  applyCustomCSS,
+  isHeightChanging
 } from "./utils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -24,6 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let spacerElement = null;
   let resizeObserver = null;
   let observer = null;
+  let shouldRecalculateHeightRatio = false;
 
   function handleCompositionStart() {
     isComposing = true;
@@ -142,6 +144,18 @@ document.addEventListener("DOMContentLoaded", function () {
               );
             }
             updateClone(compositionData);
+            handleScroll();
+
+            const shouldUpdateEditorheight =
+              isHeightChanging(primaryEditor) &&
+              !["scroll", "auto"].includes(
+                window.getComputedStyle(primaryEditor).overflowY
+              );
+
+            if (shouldUpdateEditorheight) {
+              updateEditorHeight();
+            }
+
             rafId = null;
           });
         });
@@ -165,16 +179,18 @@ document.addEventListener("DOMContentLoaded", function () {
       if (isEditable && event.target === primaryEditor) {
         // Blur event - remove clone
         removeCloneEditor();
-        // Small delay to allow for potential re-focus
-        // setTimeout(() => {
-        //   if (document.activeElement !== primaryEditor) {
-        //     removeCloneEditor();
-        //   }
-        // }, 100);
       }
     },
     true
   );
+
+  function updateEditorHeight() {
+    if (!cloneEditor || !spacerElement) return;
+    const scrollHeight = primaryEditor.scrollHeight;
+    // Update spacer
+    spacerElement.style.height = scrollHeight + "px";
+    shouldRecalculateHeightRatio = true;
+  }
 
   // Create clone on focus (ensures element is fully rendered)
   function createCloneEditor() {
@@ -184,23 +200,16 @@ document.addEventListener("DOMContentLoaded", function () {
     const primaryRect = primaryEditor.getBoundingClientRect();
     const computed = window.getComputedStyle(primaryEditor);
     const originalBgColor = computed.backgroundColor;
+    const originalWidth = computed.width;
+    const originalHeight = computed.height;
     const currentPosition = computed.position;
-
-    // Calculate dimensions adjusted for box-sizing
-    const adjustedDimensions = calculateAdjustedDimensions(
-      computed,
-      primaryRect.width,
-      primaryRect.height
-    );
-    const originalWidth = adjustedDimensions.width;
-    const originalHeight = adjustedDimensions.height;
 
     // 2. Find parent container
     const parent = findNearestAncestor(primaryEditor);
     const parentRect = parent.getBoundingClientRect();
     // This ratio helps maintain size relative to parent on resize(border-box)
-    const widthRatio = primaryRect.width / parentRect.width;
-    const heightRatio = primaryRect.height / parentRect.height;
+    let widthRatio = primaryRect.width / parentRect.width;
+    let heightRatio = primaryRect.height / parentRect.height;
 
     // 3. Calculate offset from parent
     const topOffset = primaryRect.top - parentRect.top;
@@ -264,22 +273,18 @@ document.addEventListener("DOMContentLoaded", function () {
     // Insert clone before primary
     parent.insertBefore(cloneEditor, primaryEditor);
 
-    // 9. Set up ResizeObserver to handle resize
+    // 9. Set up ResizeObserver to handle parent container resize
     resizeObserver = new ResizeObserver((entries) => {
-      for (let entry of entries) {
-        const parentComputed = window.getComputedStyle(parent);
-        // Calculate adjusted parent dimensions (border-box)
-        const adjustedParentDimensions = calculateAdjustedDimensions(
-          parentComputed,
-          entry.contentRect.width,
-          entry.contentRect.height,
-          false
-        );
+      for (let _ of entries) {
+        const parentRect = parent.getBoundingClientRect();
 
-        const newWidth = parseInt(adjustedParentDimensions.width * widthRatio);
-        const newHeight = parseInt(
-          adjustedParentDimensions.height * heightRatio
-        );
+        if (shouldRecalculateHeightRatio) {
+          const spaceRect = spacerElement.getBoundingClientRect();
+          heightRatio = spaceRect.height / parentRect.height;
+        }
+
+        const newWidth = parseInt(parentRect.width * widthRatio);
+        const newHeight = parseInt(parentRect.height * heightRatio);
 
         spacerElement.style.width = newWidth + "px";
         spacerElement.style.height = newHeight + "px";
@@ -357,6 +362,8 @@ document.addEventListener("DOMContentLoaded", function () {
       // Only clear our reference
       positionedAncestor = null;
     }
+
+    shouldRecalculateHeightRatio = false;
 
     console.log("Clone editor removed and state restored");
   }
@@ -538,4 +545,14 @@ document.addEventListener("DOMContentLoaded", function () {
   // Make functions globally accessible
   window.clearEditor = clearEditor;
   window.insertMarkedParagraph = insertMarkedParagraph;
+
+  //NOTE: This code can be removed later
+  //const parentComputed = window.getComputedStyle(parent);
+  // Calculate adjusted parent dimensions (border-box)
+  // const adjustedParentDimensions = calculateAdjustedDimensions(
+  //   parentComputed,
+  //   entry.contentRect.width,
+  //   entry.contentRect.height,
+  //   false
+  // );
 });

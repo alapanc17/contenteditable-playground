@@ -124,7 +124,7 @@
 
       .editable-div {
         min-height: 300px;
-        max-height: 400px;
+        max-height: 350px;
         overflow-y: auto;
         line-height: 1.5;
         cursor: text;
@@ -235,7 +235,35 @@
     </div>
 
     <div class="editor-container">
-      <!-- <div id="primary-editor" contenteditable="true">
+      <h3>Complex Example: Simulated Rich Editor</h3>
+      <div
+        class="editable-div rich-editor"
+        id="primary-editor"
+        contenteditable="true"
+      >
+        <p>
+          Welcome to our meeting! Attendees:
+          <span class="mention" contenteditable="false">@alice</span>
+          <span class="mention" contenteditable="false">@bob</span>
+        </p>
+        <p>Topics to discuss:</p>
+        <ul>
+          <li>
+            Project status
+            <span class="tag" contenteditable="false">#urgent</span>
+          </li>
+          <li>Budget review</li>
+        </ul>
+        <div class="widget" contenteditable="false">
+          <strong>📊 Embedded Widget (Non-editable)</strong>
+          <div class="widget-content" contenteditable="true">
+            But you can edit content inside this widget!
+          </div>
+        </div>
+        <p>Continue typing here after the widget...</p>
+      </div>
+      <h3>Normal Content editable</h3>
+      <div class="editable-div rich-editor" contenteditable="true">
         <p>
           Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
           eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
@@ -271,33 +299,6 @@
           nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo
           voluptas nulla pariatur.
         </p>
-      </div> -->
-      <h3>5. Complex Example: Simulated Rich Editor</h3>
-      <div
-        class="editable-div rich-editor"
-        id="primary-editor"
-        contenteditable="true"
-      >
-        <p>
-          Welcome to our meeting! Attendees:
-          <span class="mention" contenteditable="false">@alice</span>
-          <span class="mention" contenteditable="false">@bob</span>
-        </p>
-        <p>Topics to discuss:</p>
-        <ul>
-          <li>
-            Project status
-            <span class="tag" contenteditable="false">#urgent</span>
-          </li>
-          <li>Budget review</li>
-        </ul>
-        <div class="widget" contenteditable="false">
-          <strong>📊 Embedded Widget (Non-editable)</strong>
-          <div class="widget-content" contenteditable="true">
-            But you can edit content inside this widget!
-          </div>
-        </div>
-        <p>Continue typing here after the widget...</p>
       </div>
       <!-- Clone will be inserted here dynamically -->
     </div>

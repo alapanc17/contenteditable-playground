@@ -62,7 +62,7 @@ export function calculateAdjustedDimensions(
 
     const paddingTop = (parseFloat(computed.paddingTop) || 0) * factor;
     const paddingBottom = (parseFloat(computed.paddingBottom) || 0) * factor;
-    const borderTop = parseFloat(computed.borderTopWidth) || 0;
+    const borderTop = (parseFloat(computed.borderTopWidth) || 0) * factor;
     const borderBottom = (parseFloat(computed.borderBottomWidth) || 0) * factor;
     adjustedHeight =
       height + paddingTop + paddingBottom + borderTop + borderBottom;
@@ -146,4 +146,8 @@ export function applyCustomCSS(element, styles) {
       typeof value === "number" && property !== "zIndex" ? `${value}px` : value;
     element.style[property] = formattedValue;
   });
+}
+
+export function isHeightChanging(element) {
+  return element.scrollHeight != parseInt(element.style.height);
 }
