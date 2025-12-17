@@ -279,16 +279,29 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // 9. Set up ResizeObserver to handle parent container resize
     resizeObserver = new ResizeObserver((entries) => {
-      for (let _ of entries) {
-        const parentRect = parent.getBoundingClientRect();
+      for (let entry of entries) {
+        let parentDimensions = { width: 0, height: 0 };
+
+        if (entry.borderBoxSize?.length > 0) {
+          parentDimensions = {
+            width: entry.borderBoxSize[0].inlineSize,
+            height: entry.borderBoxSize[0].blockSize
+          };
+        } else {
+          const parentRect = parent.getBoundingClientRect();
+          parentDimensions = {
+            width: parentRect.width,
+            height: parentRect.height
+          };
+        }
 
         if (shouldRecalculateHeightRatio) {
           const spaceRect = spacerElement.getBoundingClientRect();
-          heightRatio = spaceRect.height / parentRect.height;
+          heightRatio = spaceRect.height / parentDimensions.height;
         }
 
-        const newWidth = parseInt(parentRect.width * widthRatio);
-        const newHeight = parseInt(parentRect.height * heightRatio);
+        const newWidth = parseInt(parentDimensions.width * widthRatio);
+        const newHeight = parseInt(parentDimensions.height * heightRatio);
 
         spacerElement.style.width = newWidth + "px";
         spacerElement.style.height = newHeight + "px";
