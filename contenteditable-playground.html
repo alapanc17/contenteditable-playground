@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ContentEditable Playground</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1400px;
+        margin: 40px auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      h1 {
+        color: #333;
+      }
+      .container {
+        display: flex;
+        gap: 20px;
+        margin: 20px 0;
+      }
+      .editor-section {
+        flex: 1;
+      }
+      .editor-section h3 {
+        margin-top: 0;
+        color: #555;
+        font-size: 16px;
+      }
+      .playground {
+        border: 2px solid #ccc;
+        border-radius: 8px;
+        padding: 20px;
+        min-height: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+        background-color: #f9f9f9;
+        font-family: inherit;
+        line-height: 1.6;
+      }
+      #editor,
+      #output {
+        background-color: #fff;
+        cursor: text;
+      }
+      .controls {
+        margin: 20px 0;
+      }
+      button {
+        padding: 10px 15px;
+        margin-right: 10px;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      a {
+        display: inline-block;
+        margin-top: 20px;
+        color: #0066cc;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      /* Merged mode styles */
+      .container.merged {
+        position: relative;
+        display: block;
+        height: 400px;
+      }
+
+      .container.merged .editor-section {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .container.merged #editor {
+        background-color: transparent !important;
+        position: relative;
+        z-index: 2;
+      }
+
+      .container.merged #output {
+        color: #fff;
+        position: relative;
+        z-index: 1;
+      }
+
+      .merge-controls {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f0f0f0;
+        border-radius: 8px;
+      }
+
+      .merge-controls label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        font-weight: 500;
+      }
+
+      .merge-controls input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+
+      /* ID selector for testing - mark style */
+      #marked-text {
+        background-color: #ffeb3b;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+    <script type="module" crossorigin src="/contenteditable-playground/assets/contenteditable-B4Nbh6KF.js"></script>
+    <link rel="modulepreload" crossorigin href="/contenteditable-playground/assets/modulepreload-polyfill-B5Qt9EMX.js">
+    <link rel="modulepreload" crossorigin href="/contenteditable-playground/assets/utils-CLlKCC6B.js">
+  </head>
+  <body>
+    <h1>ContentEditable Playground</h1>
+    <p>
+      Type in the left editor and see the HTML output updated in real-time on
+      the right.
+    </p>
+
+    <div class="controls">
+      <button onclick="clearEditor()">Clear Content</button>
+      <button onclick="insertBold()">Insert Bold Text</button>
+      <button onclick="insertItalic()">Insert Italic Text</button>
+      <button onclick="insertMarkedParagraph()">
+        Insert Marked Paragraph (ID Test)
+      </button>
+      <div class="merge-controls">
+        <label>
+          <input
+            type="checkbox"
+            id="mergeCheckbox"
+            onchange="toggleMergeMode()"
+          />
+          <span>Merge Editors (Overlay Mode)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="editor-section">
+        <h3>Editable Content</h3>
+        <div id="editor" class="playground" contenteditable="true">
+          <p>
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
+            ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+            aliquip ex ea commodo consequat. Duis aute irure dolor in
+            reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
+            pariatur.
+          </p>
+
+          <p>
+            Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+            officia deserunt mollit anim id est laborum. Sed ut perspiciatis
+            unde omnis iste natus error sit voluptatem accusantium doloremque
+            laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore
+            veritatis et quasi architecto beatae vitae dicta sunt explicabo.
+          </p>
+
+          <p>
+            Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut
+            fugit, sed quia consequuntur magni dolores eos qui ratione
+            voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem
+            ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non
+            numquam eius modi tempora incidunt ut labore et dolore magnam
+            aliquam quaerat voluptatem.
+          </p>
+
+          <p>
+            Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis
+            suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis
+            autem vel eum iure reprehenderit qui in ea voluptate velit esse quam
+            nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo
+            voluptas nulla pariatur.
+          </p>
+        </div>
+      </div>
+
+      <div class="editor-section">
+        <h3>HTML Output</h3>
+        <div id="output" class="playground">
+          Start typing here... You can edit this text freely!
+        </div>
+      </div>
+    </div>
+
+    <a href="index.html">← Back to Demo Page</a>
+  </body>
+</html>
