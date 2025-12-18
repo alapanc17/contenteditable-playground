@@ -151,3 +151,36 @@ export function applyCustomCSS(element, styles) {
 export function isHeightChanging(element) {
   return element.scrollHeight != parseInt(element.style.height);
 }
+
+export function copyAllVisualStyles(source, target) {
+  // Copy all visual computed styles from source to target
+  const computed = window.getComputedStyle(source);
+
+  // Copy all important visual properties
+  const visualProps = [
+    //"lineHeight",
+    "padding",
+    "margin",
+    "fontSize",
+    "fontFamily",
+    "fontWeight",
+    "fontStyle",
+    "letterSpacing",
+    "wordSpacing",
+    "textAlign",
+    "textDecoration",
+    "textTransform",
+    "borderRadius",
+    "boxSizing",
+    "overflowY",
+    "overflowX",
+    "border"
+  ];
+
+  visualProps.forEach((prop) => {
+    const value = computed[prop];
+    if (value && value !== "initial" && value !== "inherit") {
+      target.style[prop] = value;
+    }
+  });
+}

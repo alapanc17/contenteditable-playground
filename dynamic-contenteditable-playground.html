@@ -158,7 +158,9 @@
         border: 1px dashed #9c27b0;
         border-radius: 4px;
         cursor: text;
-        min-height: 40px;
+        max-height: calc(30vh - 80px);
+        min-height: calc(1 * 22px + 16px);
+        overflow-y: auto;
       }
 
       .widget-content:focus {
@@ -257,7 +259,13 @@
         <div class="widget" contenteditable="false">
           <strong>📊 Embedded Widget (Non-editable)</strong>
           <div class="widget-content" contenteditable="true">
-            But you can edit content inside this widget!
+            <p>
+              Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+              officia deserunt mollit anim id est laborum. Sed ut perspiciatis
+              unde omnis iste natus error sit voluptatem accusantium doloremque
+              laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore
+              veritatis et quasi architecto beatae vitae dicta sunt explicabo.
+            </p>
           </div>
         </div>
         <p>Continue typing here after the widget...</p>

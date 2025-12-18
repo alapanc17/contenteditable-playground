@@ -1,6 +1,7 @@
 // Import shared helper functions
 import {
   copyComputedStyles,
+  copyAllVisualStyles,
   calculateAdjustedDimensions,
   getNodePath,
   getNodeByPath,
@@ -26,6 +27,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let resizeObserver = null;
   let observer = null;
   let shouldRecalculateHeightRatio = false;
+  let shouldIgnoreHeightValue = true;
 
   function handleCompositionStart() {
     isComposing = true;
@@ -148,11 +150,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const shouldUpdateEditorheight =
               isHeightChanging(primaryEditor) &&
-              !["scroll", "auto"].includes(
+              (!["scroll", "auto"].includes(
                 window.getComputedStyle(primaryEditor).overflowY
-              );
+              ) ||
+                (computed["max-height"] &&
+                  computed["height"] < computed["max-height"]));
 
             if (shouldUpdateEditorheight) {
+              console.info(
+                `Height changed, updating editor scrollHeight to: ${primaryEditor.scrollHeight}px, clientHeight: ${primaryEditor.clientHeight}px`
+              );
               updateEditorHeight();
             }
 
@@ -178,7 +185,7 @@ document.addEventListener("DOMContentLoaded", function () {
       console.log("Blur:", event.target, "contenteditable:", isEditable);
       if (isEditable && event.target === primaryEditor) {
         // Blur event - remove clone
-        removeCloneEditor();
+        //removeCloneEditor();
       }
     },
     true
@@ -239,14 +246,25 @@ document.addEventListener("DOMContentLoaded", function () {
     // 6. Store original position for restoration
     originalPrimaryPosition = currentPosition;
 
-    // 7. Make primary absolutely positioned with calculated offset
-    applyCustomCSS(primaryEditor, {
+    let commonEditorCSSAttributes = {
       position: "absolute",
       top: topOffset,
       left: leftOffset,
       width: originalWidth,
-      height: originalHeight,
-      margin: "0",
+      margin: "0"
+    };
+
+    if (!computed["max-height"]) {
+      shouldIgnoreHeightValue = false;
+      commonEditorCSSAttributes = {
+        ...commonEditorCSSAttributes,
+        height: originalHeight
+      };
+    }
+
+    // 7. Make primary absolutely positioned with calculated offset
+    applyCustomCSS(primaryEditor, {
+      ...commonEditorCSSAttributes,
       zIndex: "2" // On top
     });
 
@@ -257,12 +275,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Position clone identically to primary
     applyCustomCSS(cloneEditor, {
-      position: "absolute",
-      top: topOffset,
-      left: leftOffset,
-      width: originalWidth,
-      height: originalHeight,
-      margin: "0",
+      ...commonEditorCSSAttributes,
       zIndex: "1" // Below primary
     });
 
@@ -314,12 +327,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Update primary
         primaryEditor.style.width = adjustedDimensions.width + "px";
-        primaryEditor.style.height = adjustedDimensions.height + "px";
+        if (!shouldIgnoreHeightValue) {
+          primaryEditor.style.height = adjustedDimensions.height + "px";
+        }
 
         // Update clone
         if (cloneEditor) {
           cloneEditor.style.width = adjustedDimensions.width + "px";
-          cloneEditor.style.height = adjustedDimensions.height + "px";
+          if (!shouldIgnoreHeightValue) {
+            cloneEditor.style.height = adjustedDimensions.height + "px";
+          }
         }
       }
     });
@@ -384,41 +401,6 @@ document.addEventListener("DOMContentLoaded", function () {
     shouldRecalculateHeightRatio = false;
 
     console.log("Clone editor removed and state restored");
-  }
-
-  // Copy all visual computed styles from source to target
-  function copyAllVisualStyles(source, target) {
-    const computed = window.getComputedStyle(source);
-
-    // Copy all important visual properties
-    const visualProps = [
-      "width",
-      "height",
-      "padding",
-      "margin",
-      "fontSize",
-      "fontFamily",
-      "fontWeight",
-      "fontStyle",
-      //"lineHeight",
-      "letterSpacing",
-      "wordSpacing",
-      "textAlign",
-      "textDecoration",
-      "textTransform",
-      "borderRadius",
-      "boxSizing",
-      "overflowY",
-      "overflowX",
-      "border"
-    ];
-
-    visualProps.forEach((prop) => {
-      const value = computed[prop];
-      if (value && value !== "initial" && value !== "inherit") {
-        target.style[prop] = value;
-      }
-    });
   }
 
   // Update clone content with optional composition highlighting
