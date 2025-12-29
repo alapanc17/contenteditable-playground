@@ -269,6 +269,13 @@ document.addEventListener("DOMContentLoaded", function () {
     // 6. Store original position for restoration
     originalPrimaryPosition = currentPosition;
 
+    // Preserve z-index stacking context
+    const originalZIndex = computed.zIndex;
+    const baseZIndex =
+      originalZIndex === "auto" ? 0 : parseInt(originalZIndex, 10);
+    const cloneZIndex = baseZIndex;
+    const primaryZIndex = baseZIndex + 1;
+
     const commonEditorCSSAttributes = {
       position: "absolute",
       top: topOffset,
@@ -281,7 +288,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // 7. Make primary absolutely positioned with calculated offset
     applyCustomCSS(primaryEditor, {
       ...commonEditorCSSAttributes,
-      zIndex: "2" // On top
+      zIndex: primaryZIndex // Original + 1 (on top)
     });
 
     // 8. Create and position clone
@@ -292,7 +299,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Position clone identically to primary
     applyCustomCSS(cloneEditor, {
       ...commonEditorCSSAttributes,
-      zIndex: "1" // Below primary
+      zIndex: cloneZIndex // Original z-index (below primary)
     });
 
     // Copy all visual computed styles
