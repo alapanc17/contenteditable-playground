@@ -5,7 +5,6 @@ import {
   calculateAdjustedDimensions,
   getNodePath,
   getNodeByPath,
-  onlyToggledSpecialClass,
   findNearestAncestor,
   applyCustomCSS,
   isHeightChanging
@@ -27,7 +26,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let resizeObserver = null;
   let observer = null;
   let shouldRecalculateHeightRatio = false;
-  let hasMaxHeight = false;
+  let useAutoHeight = false;
+
   const observerConfig = {
     childList: true,
     subtree: true,
@@ -224,9 +224,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const originalHeight = computed.height;
     const currentPosition = computed.position;
 
-    // Track if max-height is set (not 'none')
-    hasMaxHeight =
-      computed.maxHeight !== "none" || computed.minHeight !== "none";
+    // Auto height when: (min-height set AND no overflow constraint) OR max-height set
+    const hasMinHeight = computed.minHeight !== "none";
+    const hasMaxHeight = computed.maxHeight !== "none";
+    const hasOverflowConstraint =
+      computed.overflow !== "visible" && computed.overflow !== "";
+    useAutoHeight = hasMaxHeight || (hasMinHeight && !hasOverflowConstraint);
 
     // 2. Find parent container
     const parent = findNearestAncestor(primaryEditor);
@@ -242,12 +245,15 @@ document.addEventListener("DOMContentLoaded", function () {
     // 4. Create spacer to prevent parent collapse
     spacerElement = document.createElement("div");
     spacerElement.id = "primary-editor-spacer";
-    spacerElement.style.width = primaryRect.width + "px";
-    spacerElement.style.height = primaryRect.height + "px";
-    spacerElement.style.visibility = "hidden"; // Invisible but takes space
-    spacerElement.style.pointerEvents = "none";
-    spacerElement.style.display = "block";
-    spacerElement.style.overflow = "hidden";
+    applyCustomCSS(spacerElement, {
+      width: primaryRect.width + "px",
+      height: primaryRect.height + "px",
+      margin: computed.margin,
+      visibility: "hidden", // Invisible but takes space
+      pointerEvents: "none",
+      display: "block",
+      overflow: "hidden"
+    });
 
     // Insert spacer before primary
     parent.insertBefore(spacerElement, primaryEditor);
@@ -263,7 +269,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // 6. Store original position for restoration
     originalPrimaryPosition = currentPosition;
 
-    let commonEditorCSSAttributes = {
+    const commonEditorCSSAttributes = {
       position: "absolute",
       top: topOffset,
       left: leftOffset,
@@ -338,23 +344,18 @@ document.addEventListener("DOMContentLoaded", function () {
         // Update primary
         primaryEditor.style.width = adjustedDimensions.width + "px";
 
-        if (hasMaxHeight) {
-          // Don't set explicit height - let content determine it (up to max-height)
-          primaryEditor.style.height = "auto";
-        } else {
-          // No max-height, set explicit height
-          primaryEditor.style.height = adjustedDimensions.height + "px";
-        }
+        // If max-height is present then Don't set explicit height - let content determine it (up to max-height)
+        // else if No max-height, set explicit height
+        primaryEditor.style.height = useAutoHeight
+          ? "auto"
+          : adjustedDimensions.height + "px";
 
         // Update clone
         if (cloneEditor) {
           cloneEditor.style.width = adjustedDimensions.width + "px";
-
-          if (hasMaxHeight) {
-            cloneEditor.style.height = "auto";
-          } else {
-            cloneEditor.style.height = adjustedDimensions.height + "px";
-          }
+          cloneEditor.style.height = useAutoHeight
+            ? "auto"
+            : adjustedDimensions.height + "px";
         }
       }
     });
@@ -419,7 +420,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // 7. Reset height-related flags
     shouldRecalculateHeightRatio = false;
-    hasMaxHeight = false;
+    useAutoHeight = false;
 
     console.log("Clone editor removed and state restored");
   }
@@ -436,8 +437,12 @@ document.addEventListener("DOMContentLoaded", function () {
     cloneEditor.className = primaryEditor.className;
 
     // Copy other attributes (except id, contenteditable, style, and data-overlay-mode)
-    Array.from(primaryEditor.attributes).forEach(attr => {
-      if (!['id', 'contenteditable', 'style', 'data-overlay-mode'].includes(attr.name)) {
+    Array.from(primaryEditor.attributes).forEach((attr) => {
+      if (
+        !["id", "contenteditable", "style", "data-overlay-mode"].includes(
+          attr.name
+        )
+      ) {
         cloneEditor.setAttribute(attr.name, attr.value);
       }
     });

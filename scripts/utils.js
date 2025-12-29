@@ -124,20 +124,6 @@ export function findNearestAncestor(element) {
   return element.parentNode;
 }
 
-export function onlyToggledSpecialClass(oldClass, newClass, special) {
-  const oldSet = new Set(oldClass.split(/\s+/).filter(Boolean));
-  const newSet = new Set(newClass.split(/\s+/).filter(Boolean));
-
-  const added = [...newSet].filter((c) => !oldSet.has(c));
-  const removed = [...oldSet].filter((c) => !newSet.has(c));
-
-  // Ignore if the delta is exactly [+special] or [-special]
-  return (
-    (added.length >= 1 && added.includes(special) && removed.length === 0) ||
-    (removed.length >= 1 && removed.includes(special) && added.length === 0)
-  );
-}
-
 // Apply custom css to an editor element
 export function applyCustomCSS(element, styles) {
   Object.entries(styles).forEach(([property, value]) => {
