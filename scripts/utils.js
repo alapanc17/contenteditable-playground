@@ -140,11 +140,38 @@ export function isHeightChanging(element) {
 
 export function copyAllVisualStyles(source, target) {
   // Copy all visual computed styles from source to target
-  const computed = window.getComputedStyle(source);
+  const resolvedValues = window.getComputedStyle(source);
+  const computedValues = source.computedStyleMap();
 
-  // Copy all important visual properties
-  const visualProps = [
-    //"lineHeight",
+  // Properties that need computed values (before resolution) to preserve relative units
+  const propsNeedingComputedValues = {
+    lineHeight: "line-height"
+  };
+
+  // Copy properties that need computed values first
+  Object.entries(propsNeedingComputedValues).forEach(([camelCase, cssName]) => {
+    const computedValue = computedValues.get(cssName);
+    if (computedValue) {
+      // For line-height, preserve unitless numbers
+      if (cssName === "line-height" && computedValue.constructor.name === "CSSNumericValue") {
+        // Check if it's a unitless number
+        const unit = computedValue.unit;
+        if (unit === "number") {
+          // Unitless value like 1.5
+          target.style[camelCase] = computedValue.value.toString();
+        } else {
+          // Has units, use resolved value
+          target.style[camelCase] = resolvedValues[camelCase];
+        }
+      } else {
+        // Use the computed value string representation
+        target.style[camelCase] = computedValue.toString();
+      }
+    }
+  });
+
+  // Copy all other visual properties using resolved values
+  const otherVisualProps = [
     "padding",
     "margin",
     "fontSize",
@@ -163,8 +190,8 @@ export function copyAllVisualStyles(source, target) {
     "border"
   ];
 
-  visualProps.forEach((prop) => {
-    const value = computed[prop];
+  otherVisualProps.forEach((prop) => {
+    const value = resolvedValues[prop];
     if (value && value !== "initial" && value !== "inherit") {
       target.style[prop] = value;
     }
