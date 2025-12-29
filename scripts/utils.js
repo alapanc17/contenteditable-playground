@@ -62,7 +62,7 @@ export function calculateAdjustedDimensions(
 
     const paddingTop = (parseFloat(computed.paddingTop) || 0) * factor;
     const paddingBottom = (parseFloat(computed.paddingBottom) || 0) * factor;
-    const borderTop = parseFloat(computed.borderTopWidth) || 0;
+    const borderTop = (parseFloat(computed.borderTopWidth) || 0) * factor;
     const borderBottom = (parseFloat(computed.borderBottomWidth) || 0) * factor;
     adjustedHeight =
       height + paddingTop + paddingBottom + borderTop + borderBottom;
@@ -145,5 +145,42 @@ export function applyCustomCSS(element, styles) {
     const formattedValue =
       typeof value === "number" && property !== "zIndex" ? `${value}px` : value;
     element.style[property] = formattedValue;
+  });
+}
+
+export function isHeightChanging(element) {
+  return element.scrollHeight != parseInt(element.style.height);
+}
+
+export function copyAllVisualStyles(source, target) {
+  // Copy all visual computed styles from source to target
+  const computed = window.getComputedStyle(source);
+
+  // Copy all important visual properties
+  const visualProps = [
+    //"lineHeight",
+    "padding",
+    "margin",
+    "fontSize",
+    "fontFamily",
+    "fontWeight",
+    "fontStyle",
+    "letterSpacing",
+    "wordSpacing",
+    "textAlign",
+    "textDecoration",
+    "textTransform",
+    "borderRadius",
+    "boxSizing",
+    "overflowY",
+    "overflowX",
+    "border"
+  ];
+
+  visualProps.forEach((prop) => {
+    const value = computed[prop];
+    if (value && value !== "initial" && value !== "inherit") {
+      target.style[prop] = value;
+    }
   });
 }

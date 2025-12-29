@@ -1,12 +1,14 @@
 // Import shared helper functions
 import {
   copyComputedStyles,
+  copyAllVisualStyles,
   calculateAdjustedDimensions,
   getNodePath,
   getNodeByPath,
   onlyToggledSpecialClass,
   findNearestAncestor,
-  applyCustomCSS
+  applyCustomCSS,
+  isHeightChanging
 } from "./utils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -24,6 +26,14 @@ document.addEventListener("DOMContentLoaded", function () {
   let spacerElement = null;
   let resizeObserver = null;
   let observer = null;
+  let shouldRecalculateHeightRatio = false;
+  let hasMaxHeight = false;
+  const observerConfig = {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    characterData: true
+  };
 
   function handleCompositionStart() {
     isComposing = true;
@@ -106,33 +116,27 @@ document.addEventListener("DOMContentLoaded", function () {
         primaryEditor.addEventListener("compositionend", handleCompositionEnd);
 
         // Focus event - create clone
-        createCloneEditor();
+        const primaryStyles = window.getComputedStyle(primaryEditor);
+        createCloneEditor(primaryStyles);
 
         // Scroll sync
         primaryEditor.addEventListener("scroll", handleScroll);
 
         // MutationObserver with RAF throttling
-        observer = new MutationObserver(function (records) {
+        observer = new MutationObserver(function (mutations) {
           if (rafId) {
             cancelAnimationFrame(rafId);
           }
 
-          const validMutations = records.filter((r) => {
-            if (r.type === "attributes" && r.attributeName === "class") {
-              const el = r.target;
-
-              const oldClass = r.oldValue ?? "";
-              const newClass = el.getAttribute("class") ?? "";
-
-              // If the only class delta is overlay-mode, ignore
-              if (onlyToggledSpecialClass(oldClass, newClass, "overlay-mode")) {
-                return false;
-              }
-            }
-            return true;
+          const relevantMutations = mutations.filter((mutation) => {
+            // Ignore data-overlay-mode attribute changes
+            return !(
+              mutation.type === "attributes" &&
+              mutation.attributeName === "data-overlay-mode"
+            );
           });
 
-          if (validMutations.length === 0) return;
+          if (relevantMutations.length === 0) return;
 
           rafId = requestAnimationFrame(() => {
             if (isComposing) {
@@ -142,16 +146,34 @@ document.addEventListener("DOMContentLoaded", function () {
               );
             }
             updateClone(compositionData);
+            handleScroll();
+
+            // Break down the height update conditions for clarity
+            const isEditorHeightChanging = isHeightChanging(primaryEditor);
+            const hasNoScrollOverflow = !["scroll", "auto"].includes(
+              primaryStyles.overflowY
+            );
+            const isBelowMaxHeight =
+              primaryStyles.maxHeight !== "none" &&
+              parseFloat(primaryStyles.height) <
+                parseFloat(primaryStyles.maxHeight);
+
+            const shouldUpdateEditorheight =
+              isEditorHeightChanging &&
+              (hasNoScrollOverflow || isBelowMaxHeight);
+
+            if (shouldUpdateEditorheight) {
+              updateEditorHeight(
+                isEditorHeightChanging && hasNoScrollOverflow,
+                primaryStyles
+              );
+            }
+
             rafId = null;
           });
         });
 
-        observer.observe(primaryEditor, {
-          childList: true,
-          subtree: true,
-          attributes: true,
-          characterData: true
-        });
+        observer.observe(primaryEditor, observerConfig);
       }
     },
     true
@@ -165,42 +187,53 @@ document.addEventListener("DOMContentLoaded", function () {
       if (isEditable && event.target === primaryEditor) {
         // Blur event - remove clone
         removeCloneEditor();
-        // Small delay to allow for potential re-focus
-        // setTimeout(() => {
-        //   if (document.activeElement !== primaryEditor) {
-        //     removeCloneEditor();
-        //   }
-        // }, 100);
       }
     },
     true
   );
 
+  function updateEditorHeight(canGrowVertically = true, primaryStyles) {
+    if (!cloneEditor || !spacerElement) return;
+    let actualHeight = 0;
+    // Use scrollHeight + border width when element can grow (no scroll overflow), otherwise use rendered height
+    if (canGrowVertically) {
+      const heightComponents = [
+        primaryEditor.scrollHeight,
+        primaryStyles.borderTopWidth,
+        primaryStyles.borderBottomWidth
+      ];
+      actualHeight = heightComponents
+        .map(parseFloat)
+        .reduce((a, b) => a + b, 0);
+    } else {
+      actualHeight = primaryEditor.getBoundingClientRect().height;
+    }
+    // Update spacer to match calculated height
+    spacerElement.style.height = actualHeight + "px";
+    shouldRecalculateHeightRatio = true;
+  }
+
   // Create clone on focus (ensures element is fully rendered)
-  function createCloneEditor() {
+  function createCloneEditor(computed) {
     if (cloneEditor) return; // Already created
 
     // 1. Capture measurements BEFORE changing anything
     const primaryRect = primaryEditor.getBoundingClientRect();
-    const computed = window.getComputedStyle(primaryEditor);
     const originalBgColor = computed.backgroundColor;
+    const originalWidth = computed.width;
+    const originalHeight = computed.height;
     const currentPosition = computed.position;
 
-    // Calculate dimensions adjusted for box-sizing
-    const adjustedDimensions = calculateAdjustedDimensions(
-      computed,
-      primaryRect.width,
-      primaryRect.height
-    );
-    const originalWidth = adjustedDimensions.width;
-    const originalHeight = adjustedDimensions.height;
+    // Track if max-height is set (not 'none')
+    hasMaxHeight =
+      computed.maxHeight !== "none" || computed.minHeight !== "none";
 
     // 2. Find parent container
     const parent = findNearestAncestor(primaryEditor);
     const parentRect = parent.getBoundingClientRect();
     // This ratio helps maintain size relative to parent on resize(border-box)
-    const widthRatio = primaryRect.width / parentRect.width;
-    const heightRatio = primaryRect.height / parentRect.height;
+    let widthRatio = primaryRect.width / parentRect.width;
+    let heightRatio = primaryRect.height / parentRect.height;
 
     // 3. Calculate offset from parent
     const topOffset = primaryRect.top - parentRect.top;
@@ -213,6 +246,8 @@ document.addEventListener("DOMContentLoaded", function () {
     spacerElement.style.height = primaryRect.height + "px";
     spacerElement.style.visibility = "hidden"; // Invisible but takes space
     spacerElement.style.pointerEvents = "none";
+    spacerElement.style.display = "block";
+    spacerElement.style.overflow = "hidden";
 
     // Insert spacer before primary
     parent.insertBefore(spacerElement, primaryEditor);
@@ -228,13 +263,18 @@ document.addEventListener("DOMContentLoaded", function () {
     // 6. Store original position for restoration
     originalPrimaryPosition = currentPosition;
 
-    // 7. Make primary absolutely positioned with calculated offset
-    applyCustomCSS(primaryEditor, {
+    let commonEditorCSSAttributes = {
       position: "absolute",
       top: topOffset,
       left: leftOffset,
       width: originalWidth,
       height: originalHeight,
+      margin: "0"
+    };
+
+    // 7. Make primary absolutely positioned with calculated offset
+    applyCustomCSS(primaryEditor, {
+      ...commonEditorCSSAttributes,
       zIndex: "2" // On top
     });
 
@@ -245,11 +285,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Position clone identically to primary
     applyCustomCSS(cloneEditor, {
-      position: "absolute",
-      top: topOffset,
-      left: leftOffset,
-      width: originalWidth,
-      height: originalHeight,
+      ...commonEditorCSSAttributes,
       zIndex: "1" // Below primary
     });
 
@@ -259,27 +295,36 @@ document.addEventListener("DOMContentLoaded", function () {
     // Transparency setup
     cloneEditor.style.backgroundColor = originalBgColor;
     cloneEditor.style.color = originalBgColor; // Hide text
-    primaryEditor.classList.add("overlay-mode"); // Instead of inline style
+    primaryEditor.setAttribute("data-overlay-mode", "true");
 
     // Insert clone before primary
     parent.insertBefore(cloneEditor, primaryEditor);
 
-    // 9. Set up ResizeObserver to handle resize
+    // 9. Set up ResizeObserver to handle parent container resize
     resizeObserver = new ResizeObserver((entries) => {
       for (let entry of entries) {
-        const parentComputed = window.getComputedStyle(parent);
-        // Calculate adjusted parent dimensions (border-box)
-        const adjustedParentDimensions = calculateAdjustedDimensions(
-          parentComputed,
-          entry.contentRect.width,
-          entry.contentRect.height,
-          false
-        );
+        let parentDimensions = { width: 0, height: 0 };
 
-        const newWidth = parseInt(adjustedParentDimensions.width * widthRatio);
-        const newHeight = parseInt(
-          adjustedParentDimensions.height * heightRatio
-        );
+        if (entry.borderBoxSize?.length > 0) {
+          parentDimensions = {
+            width: entry.borderBoxSize[0].inlineSize,
+            height: entry.borderBoxSize[0].blockSize
+          };
+        } else {
+          const parentRect = parent.getBoundingClientRect();
+          parentDimensions = {
+            width: parentRect.width,
+            height: parentRect.height
+          };
+        }
+
+        if (shouldRecalculateHeightRatio) {
+          const spaceRect = spacerElement.getBoundingClientRect();
+          heightRatio = spaceRect.height / parentDimensions.height;
+        }
+
+        const newWidth = parseInt(parentDimensions.width * widthRatio);
+        const newHeight = parseInt(parentDimensions.height * heightRatio);
 
         spacerElement.style.width = newWidth + "px";
         spacerElement.style.height = newHeight + "px";
@@ -292,12 +337,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Update primary
         primaryEditor.style.width = adjustedDimensions.width + "px";
-        primaryEditor.style.height = adjustedDimensions.height + "px";
+
+        if (hasMaxHeight) {
+          // Don't set explicit height - let content determine it (up to max-height)
+          primaryEditor.style.height = "auto";
+        } else {
+          // No max-height, set explicit height
+          primaryEditor.style.height = adjustedDimensions.height + "px";
+        }
 
         // Update clone
         if (cloneEditor) {
           cloneEditor.style.width = adjustedDimensions.width + "px";
-          cloneEditor.style.height = adjustedDimensions.height + "px";
+
+          if (hasMaxHeight) {
+            cloneEditor.style.height = "auto";
+          } else {
+            cloneEditor.style.height = adjustedDimensions.height + "px";
+          }
         }
       }
     });
@@ -306,16 +363,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // 10. Initial content sync
     updateClone();
-
-    console.log("Clone editor created with transparent overlay effect");
-    console.log("Original background color:", originalBgColor);
   }
 
   // Remove clone on blur
   function removeCloneEditor() {
     if (!cloneEditor) return;
 
-    console.log("Removing clone editor and restoring state");
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+      console.log("MutationObserver disconnected");
+    }
 
     // 1. Disconnect ResizeObserver
     if (resizeObserver) {
@@ -343,12 +401,13 @@ document.addEventListener("DOMContentLoaded", function () {
       primaryEditor.style.left = "";
       primaryEditor.style.width = "";
       primaryEditor.style.height = "";
+      primaryEditor.style.margin = ""; // Restore original margin
       originalPrimaryPosition = null;
       console.log("Primary position restored");
     }
 
     // 5. Restore primary editor's background and z-index
-    primaryEditor.classList.remove("overlay-mode"); // Instead of inline style
+    primaryEditor.removeAttribute("data-overlay-mode");
     primaryEditor.style.zIndex = "";
 
     // 6. Restore parent's position if we changed it
@@ -358,42 +417,11 @@ document.addEventListener("DOMContentLoaded", function () {
       positionedAncestor = null;
     }
 
+    // 7. Reset height-related flags
+    shouldRecalculateHeightRatio = false;
+    hasMaxHeight = false;
+
     console.log("Clone editor removed and state restored");
-  }
-
-  // Copy all visual computed styles from source to target
-  function copyAllVisualStyles(source, target) {
-    const computed = window.getComputedStyle(source);
-
-    // Copy all important visual properties
-    const visualProps = [
-      "width",
-      "height",
-      "padding",
-      "margin",
-      "fontSize",
-      "fontFamily",
-      "fontWeight",
-      "fontStyle",
-      //"lineHeight",
-      "letterSpacing",
-      "wordSpacing",
-      "textAlign",
-      "textDecoration",
-      "textTransform",
-      "borderRadius",
-      "boxSizing",
-      "overflowY",
-      "overflowX",
-      "border"
-    ];
-
-    visualProps.forEach((prop) => {
-      const value = computed[prop];
-      if (value && value !== "initial" && value !== "inherit") {
-        target.style[prop] = value;
-      }
-    });
   }
 
   // Update clone content with optional composition highlighting
@@ -401,7 +429,18 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!cloneEditor) return;
 
     // Remove overlay-mode temporarily
-    primaryEditor.classList.remove("overlay-mode");
+    primaryEditor.removeAttribute("data-overlay-mode");
+
+    // Sync root element attributes from primary to clone (except id and specific attributes)
+    // Clear existing classes and data attributes on clone
+    cloneEditor.className = primaryEditor.className;
+
+    // Copy other attributes (except id, contenteditable, style, and data-overlay-mode)
+    Array.from(primaryEditor.attributes).forEach(attr => {
+      if (!['id', 'contenteditable', 'style', 'data-overlay-mode'].includes(attr.name)) {
+        cloneEditor.setAttribute(attr.name, attr.value);
+      }
+    });
 
     // Create a range covering just the contents of src
     const range = document.createRange();
@@ -435,7 +474,7 @@ document.addEventListener("DOMContentLoaded", function () {
       applyCompositionHighlight(compositionText, clonedContent);
     }
 
-    primaryEditor.classList.add("overlay-mode");
+    primaryEditor.setAttribute("data-overlay-mode", "true");
 
     cloneEditor.replaceChildren(clonedContent);
   }
@@ -448,8 +487,12 @@ document.addEventListener("DOMContentLoaded", function () {
       let textNode = targetNode;
       let parent = null;
 
-      // Handle element node vs text node
-      if (targetNode.nodeType === Node.ELEMENT_NODE) {
+      // Handle document fragment, element node, or text node
+      if (
+        targetNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE ||
+        targetNode.nodeType === Node.ELEMENT_NODE
+      ) {
+        // DocumentFragment or Element - look for text nodes in children
         if (range && range.startOffset < targetNode.childNodes.length) {
           const childNode = targetNode.childNodes[range.startOffset];
           if (childNode && childNode.nodeType === Node.TEXT_NODE) {
@@ -538,4 +581,14 @@ document.addEventListener("DOMContentLoaded", function () {
   // Make functions globally accessible
   window.clearEditor = clearEditor;
   window.insertMarkedParagraph = insertMarkedParagraph;
+
+  //NOTE: This code can be removed later
+  //const parentComputed = window.getComputedStyle(parent);
+  // Calculate adjusted parent dimensions (border-box)
+  // const adjustedParentDimensions = calculateAdjustedDimensions(
+  //   parentComputed,
+  //   entry.contentRect.width,
+  //   entry.contentRect.height,
+  //   false
+  // );
 });

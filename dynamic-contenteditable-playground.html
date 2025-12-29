@@ -44,8 +44,8 @@
       }
       */
 
-      [contenteditable="true"].overlay-mode,
-      [contenteditable="true"].overlay-mode * {
+      [contenteditable="true"][data-overlay-mode="true"],
+      [contenteditable="true"][data-overlay-mode="true"] * {
         background-color: transparent !important;
       }
 
@@ -124,7 +124,7 @@
 
       .editable-div {
         min-height: 300px;
-        max-height: 400px;
+        max-height: 350px;
         overflow-y: auto;
         line-height: 1.5;
         cursor: text;
@@ -158,7 +158,9 @@
         border: 1px dashed #9c27b0;
         border-radius: 4px;
         cursor: text;
-        min-height: 40px;
+        min-height: calc(1 * 22px + 16px);
+        max-height: calc(30vh - 80px);
+        overflow-y: auto;
       }
 
       .widget-content:focus {
@@ -235,7 +237,41 @@
     </div>
 
     <div class="editor-container">
-      <!-- <div id="primary-editor" contenteditable="true">
+      <h3>Complex Example: Simulated Rich Editor</h3>
+      <div
+        class="editable-div rich-editor"
+        id="primary-editor"
+        contenteditable="true"
+      >
+        <p>
+          Welcome to our meeting! Attendees:
+          <span class="mention" contenteditable="false">@alice</span>
+          <span class="mention" contenteditable="false">@bob</span>
+        </p>
+        <p>Topics to discuss:</p>
+        <ul>
+          <li>
+            Project status
+            <span class="tag" contenteditable="false">#urgent</span>
+          </li>
+          <li>Budget review</li>
+        </ul>
+        <div class="widget" contenteditable="false">
+          <strong>📊 Embedded Widget (Non-editable)</strong>
+          <div class="widget-content" contenteditable="true">
+            <p>
+              Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+              officia deserunt mollit anim id est laborum. Sed ut perspiciatis
+              unde omnis iste natus error sit voluptatem accusantium doloremque
+              laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore
+              veritatis et quasi architecto beatae vitae dicta sunt explicabo.
+            </p>
+          </div>
+        </div>
+        <p>Continue typing here after the widget...</p>
+      </div>
+      <h3>Normal Content editable</h3>
+      <div class="editable-div rich-editor" contenteditable="true">
         <p>
           Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
           eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
@@ -271,33 +307,6 @@
           nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo
           voluptas nulla pariatur.
         </p>
-      </div> -->
-      <h3>5. Complex Example: Simulated Rich Editor</h3>
-      <div
-        class="editable-div rich-editor"
-        id="primary-editor"
-        contenteditable="true"
-      >
-        <p>
-          Welcome to our meeting! Attendees:
-          <span class="mention" contenteditable="false">@alice</span>
-          <span class="mention" contenteditable="false">@bob</span>
-        </p>
-        <p>Topics to discuss:</p>
-        <ul>
-          <li>
-            Project status
-            <span class="tag" contenteditable="false">#urgent</span>
-          </li>
-          <li>Budget review</li>
-        </ul>
-        <div class="widget" contenteditable="false">
-          <strong>📊 Embedded Widget (Non-editable)</strong>
-          <div class="widget-content" contenteditable="true">
-            But you can edit content inside this widget!
-          </div>
-        </div>
-        <p>Continue typing here after the widget...</p>
       </div>
       <!-- Clone will be inserted here dynamically -->
     </div>
