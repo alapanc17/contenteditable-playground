@@ -145,7 +145,8 @@ export function copyAllVisualStyles(source, target) {
 
   // Properties that need computed values (before resolution) to preserve relative units
   const propsNeedingComputedValues = {
-    lineHeight: "line-height"
+    lineHeight: "line-height",
+    fontSize: "font-size"
   };
 
   // Copy properties that need computed values first
@@ -176,8 +177,6 @@ export function copyAllVisualStyles(source, target) {
   // Copy all other visual properties using resolved values
   const otherVisualProps = [
     "padding",
-    "margin",
-    "fontSize",
     "fontFamily",
     "fontWeight",
     "fontStyle",
