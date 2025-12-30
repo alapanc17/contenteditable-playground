@@ -28,22 +28,6 @@
         margin: 20px 0;
       }
 
-      /* Primary editor styles */
-      /* #primary-editor {
-        padding: 20px;
-        border: 2px solid #007bff;
-        border-radius: 8px;
-        background-color: #fff;
-        min-height: 300px;
-        max-height: 400px;
-        overflow-y: auto;
-        outline: none;
-        cursor: text;
-        font-family: inherit;
-        line-height: 1.6;
-      }
-      */
-
       [contenteditable="true"][data-overlay-mode="true"],
       [contenteditable="true"][data-overlay-mode="true"] * {
         background-color: transparent !important;
@@ -54,7 +38,7 @@
         position: absolute;
         top: 0;
         left: 0;
-        z-index: 1;
+        /* z-index: 1; */
       }
 
       .controls {
@@ -161,6 +145,7 @@
         min-height: calc(1 * 22px + 16px);
         max-height: calc(30vh - 80px);
         overflow-y: auto;
+        margin-left: 8px;
       }
 
       .widget-content:focus {
@@ -238,11 +223,7 @@
 
     <div class="editor-container">
       <h3>Complex Example: Simulated Rich Editor</h3>
-      <div
-        class="editable-div rich-editor"
-        id="primary-editor"
-        contenteditable="true"
-      >
+      <div class="editable-div rich-editor" contenteditable="true">
         <p>
           Welcome to our meeting! Attendees:
           <span class="mention" contenteditable="false">@alice</span>
