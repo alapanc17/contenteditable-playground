@@ -22,7 +22,6 @@ document.addEventListener("DOMContentLoaded", function () {
   let positionedAncestor = null;
   let resizeObserver = null;
   let observer = null;
-  let useAutoHeight = false;
 
   const observerConfig = {
     childList: true,
@@ -160,7 +159,7 @@ document.addEventListener("DOMContentLoaded", function () {
       console.log("Blur:", event.target, "contenteditable:", isEditable);
       if (isEditable && event.target === primaryEditor) {
         // Blur event - remove clone
-        //removeCloneEditor();
+        removeCloneEditor();
       }
     },
     true
@@ -176,19 +175,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const originalWidth = computed.width;
     const originalHeight = computed.height;
 
-    // Auto height when: (min-height set AND no overflow constraint) OR max-height set
-    const hasMinHeight = computed.minHeight !== "none";
-    const hasMaxHeight = computed.maxHeight !== "none";
-    const hasOverflowConstraint =
-      computed.overflow !== "visible" && computed.overflow !== "";
-    useAutoHeight = hasMaxHeight || (hasMinHeight && !hasOverflowConstraint);
-
     // 2. Find parent container
     const parent = findNearestAncestor(primaryEditor);
     const parentRect = parent.getBoundingClientRect();
-    // This ratio helps maintain size relative to parent on resize(border-box)
-    let widthRatio = primaryRect.width / parentRect.width;
-    let heightRatio = primaryRect.height / parentRect.height;
 
     // 3. Calculate offset from parent
     // Account for parent's border since absolute positioning is relative to padding edge
@@ -207,11 +196,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // 5. Set up editor positioning
-    // Primary: position relative (stays in document flow, maintains parent height)
-    // Clone: position absolute (overlays primary, positioned via top/left offsets)
-    applyCustomCSS(primaryEditor, {
-      position: "relative"
-    });
+    // Only change primary to relative if it's currently static
+    // This keeps it in document flow to maintain parent height
+    const currentPosition = computed.position;
+    if (currentPosition === "static") {
+      applyCustomCSS(primaryEditor, {
+        position: "relative"
+      });
+    }
 
     // 6. Create and position clone
     cloneEditor = primaryEditor.cloneNode(true);
@@ -231,6 +223,26 @@ document.addEventListener("DOMContentLoaded", function () {
     // Copy all visual computed styles
     copyAllVisualStyles(primaryEditor, cloneEditor);
 
+    // Handle z-index stacking
+    // If primary is absolute/fixed, both editors are positioned elements
+    // DOM order alone won't guarantee stacking, so we need explicit z-index
+    const finalPosition =
+      currentPosition === "static" ? "relative" : currentPosition;
+    const needsZIndex =
+      finalPosition === "absolute" || finalPosition === "fixed";
+
+    if (needsZIndex) {
+      const originalZIndex = computed.zIndex;
+      const baseZIndex =
+        originalZIndex === "auto" ? 0 : parseInt(originalZIndex, 10);
+
+      cloneEditor.style.zIndex = baseZIndex - 1; // Clone below primary
+      primaryEditor.style.zIndex = baseZIndex; // Primary on top
+      console.log(
+        `Applied z-index: clone=${baseZIndex - 1}, primary=${baseZIndex}`
+      );
+    }
+
     // Transparency setup
     cloneEditor.style.backgroundColor = originalBgColor;
     cloneEditor.style.color = originalBgColor; // Hide text
@@ -239,26 +251,35 @@ document.addEventListener("DOMContentLoaded", function () {
     // Insert clone before primary (ensures primary renders on top via DOM order)
     parent.insertBefore(cloneEditor, primaryEditor);
 
-    // 7. Set up ResizeObserver to handle parent container resize
+    // Sync initial scroll position from primary to clone
+    handleScroll();
+
+    // 7. Set up ResizeObserver to watch primary editor
+    // Fires when primary resizes for ANY reason:
+    // - Parent container resize (window, devtools, etc.)
+    // - Content changes (text wrapping, images loading)
+    // - CSS changes (font-size, padding, max-height constraints)
     resizeObserver = new ResizeObserver((entries) => {
       for (let entry of entries) {
-        let parentDimensions = { width: 0, height: 0 };
+        let primaryDimensions = { width: 0, height: 0 };
 
         if (entry.borderBoxSize?.length > 0) {
-          parentDimensions = {
+          primaryDimensions = {
             width: entry.borderBoxSize[0].inlineSize,
             height: entry.borderBoxSize[0].blockSize
           };
         } else {
           const parentRect = parent.getBoundingClientRect();
-          parentDimensions = {
+          primaryDimensions = {
             width: parentRect.width,
             height: parentRect.height
           };
         }
 
-        const newWidth = parseInt(parentDimensions.width * widthRatio);
-        const newHeight = parseInt(parentDimensions.height * heightRatio);
+        const [newWidth, newHeight] = [
+          primaryDimensions.width,
+          primaryDimensions.height
+        ].map((dim) => parseInt(dim, 10));
 
         const adjustedDimensions = calculateAdjustedDimensions(
           computed,
@@ -269,14 +290,12 @@ document.addEventListener("DOMContentLoaded", function () {
         // Update clone dimensions to match resized primary
         if (cloneEditor) {
           cloneEditor.style.width = adjustedDimensions.width + "px";
-          cloneEditor.style.height = useAutoHeight
-            ? "auto"
-            : adjustedDimensions.height + "px";
+          cloneEditor.style.height = adjustedDimensions.height + "px";
         }
       }
     });
 
-    resizeObserver.observe(parent);
+    resizeObserver.observe(primaryEditor);
 
     // 8. Initial content sync
     updateClone();
@@ -304,17 +323,15 @@ document.addEventListener("DOMContentLoaded", function () {
     cloneEditor = null;
     console.log("Clone removed");
 
-    // 3. Restore primary editor's position
+    // 3. Restore primary editor's position and z-index
     primaryEditor.style.position = "";
+    primaryEditor.style.zIndex = ""; // Clear z-index if it was set
     primaryEditor.removeAttribute("data-overlay-mode");
 
     // 4. Clear parent reference (leave parent positioned for stability)
     if (positionedAncestor) {
       positionedAncestor = null;
     }
-
-    // 5. Reset flags
-    useAutoHeight = false;
 
     console.log("Clone editor removed and state restored");
   }
