@@ -153,7 +153,10 @@ export function copyAllVisualStyles(source, target) {
     const computedValue = computedValues.get(cssName);
     if (computedValue) {
       // For line-height, preserve unitless numbers
-      if (cssName === "line-height" && computedValue.constructor.name === "CSSNumericValue") {
+      if (
+        cssName === "line-height" &&
+        computedValue.constructor.name === "CSSNumericValue"
+      ) {
         // Check if it's a unitless number
         const unit = computedValue.unit;
         if (unit === "number") {

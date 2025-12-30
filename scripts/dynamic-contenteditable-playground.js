@@ -6,8 +6,7 @@ import {
   getNodePath,
   getNodeByPath,
   findNearestAncestor,
-  applyCustomCSS,
-  isHeightChanging
+  applyCustomCSS
 } from "./utils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -21,11 +20,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let rafId = null;
   let range = null;
   let positionedAncestor = null;
-  let originalPrimaryPosition = null;
-  let spacerElement = null;
   let resizeObserver = null;
   let observer = null;
-  let shouldRecalculateHeightRatio = false;
   let useAutoHeight = false;
 
   const observerConfig = {
@@ -147,28 +143,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             updateClone(compositionData);
             handleScroll();
-
-            // Break down the height update conditions for clarity
-            const isEditorHeightChanging = isHeightChanging(primaryEditor);
-            const hasNoScrollOverflow = !["scroll", "auto"].includes(
-              primaryStyles.overflowY
-            );
-            const isBelowMaxHeight =
-              primaryStyles.maxHeight !== "none" &&
-              parseFloat(primaryStyles.height) <
-                parseFloat(primaryStyles.maxHeight);
-
-            const shouldUpdateEditorheight =
-              isEditorHeightChanging &&
-              (hasNoScrollOverflow || isBelowMaxHeight);
-
-            if (shouldUpdateEditorheight) {
-              updateEditorHeight(
-                isEditorHeightChanging && hasNoScrollOverflow,
-                primaryStyles
-              );
-            }
-
             rafId = null;
           });
         });
@@ -186,32 +160,11 @@ document.addEventListener("DOMContentLoaded", function () {
       console.log("Blur:", event.target, "contenteditable:", isEditable);
       if (isEditable && event.target === primaryEditor) {
         // Blur event - remove clone
-        removeCloneEditor();
+        //removeCloneEditor();
       }
     },
     true
   );
-
-  function updateEditorHeight(canGrowVertically = true, primaryStyles) {
-    if (!cloneEditor || !spacerElement) return;
-    let actualHeight = 0;
-    // Use scrollHeight + border width when element can grow (no scroll overflow), otherwise use rendered height
-    if (canGrowVertically) {
-      const heightComponents = [
-        primaryEditor.scrollHeight,
-        primaryStyles.borderTopWidth,
-        primaryStyles.borderBottomWidth
-      ];
-      actualHeight = heightComponents
-        .map(parseFloat)
-        .reduce((a, b) => a + b, 0);
-    } else {
-      actualHeight = primaryEditor.getBoundingClientRect().height;
-    }
-    // Update spacer to match calculated height
-    spacerElement.style.height = actualHeight + "px";
-    shouldRecalculateHeightRatio = true;
-  }
 
   // Create clone on focus (ensures element is fully rendered)
   function createCloneEditor(computed) {
@@ -222,7 +175,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const originalBgColor = computed.backgroundColor;
     const originalWidth = computed.width;
     const originalHeight = computed.height;
-    const currentPosition = computed.position;
 
     // Auto height when: (min-height set AND no overflow constraint) OR max-height set
     const hasMinHeight = computed.minHeight !== "none";
@@ -239,67 +191,41 @@ document.addEventListener("DOMContentLoaded", function () {
     let heightRatio = primaryRect.height / parentRect.height;
 
     // 3. Calculate offset from parent
-    const topOffset = primaryRect.top - parentRect.top;
-    const leftOffset = primaryRect.left - parentRect.left;
-
-    // 4. Create spacer to prevent parent collapse
-    spacerElement = document.createElement("div");
-    spacerElement.id = "primary-editor-spacer";
-    applyCustomCSS(spacerElement, {
-      width: primaryRect.width + "px",
-      height: primaryRect.height + "px",
-      margin: computed.margin,
-      visibility: "hidden", // Invisible but takes space
-      pointerEvents: "none",
-      display: "block",
-      overflow: "hidden"
-    });
-
-    // Insert spacer before primary
-    parent.insertBefore(spacerElement, primaryEditor);
-
-    // 5. Make parent positioned if needed
+    // Account for parent's border since absolute positioning is relative to padding edge
     const parentComputed = window.getComputedStyle(parent);
+    const parentBorderTop = parseFloat(parentComputed.borderTopWidth) || 0;
+    const parentBorderLeft = parseFloat(parentComputed.borderLeftWidth) || 0;
+
+    const topOffset = primaryRect.top - parentRect.top - parentBorderTop;
+    const leftOffset = primaryRect.left - parentRect.left - parentBorderLeft;
+
+    // 4. Make parent positioned if needed
     if (parentComputed.position === "static") {
       parent.style.position = "relative";
       positionedAncestor = parent;
       console.log("Made parent positioned (relative)");
     }
 
-    // 6. Store original position for restoration
-    originalPrimaryPosition = currentPosition;
+    // 5. Set up editor positioning
+    // Primary: position relative (stays in document flow, maintains parent height)
+    // Clone: position absolute (overlays primary, positioned via top/left offsets)
+    applyCustomCSS(primaryEditor, {
+      position: "relative"
+    });
 
-    // Preserve z-index stacking context
-    const originalZIndex = computed.zIndex;
-    const baseZIndex =
-      originalZIndex === "auto" ? 0 : parseInt(originalZIndex, 10);
-    const cloneZIndex = baseZIndex;
-    const primaryZIndex = baseZIndex + 1;
+    // 6. Create and position clone
+    cloneEditor = primaryEditor.cloneNode(true);
+    cloneEditor.id = "clone-editor";
+    cloneEditor.contentEditable = "false"; // Display-only
 
-    const commonEditorCSSAttributes = {
+    // Position clone to overlay primary exactly
+    applyCustomCSS(cloneEditor, {
       position: "absolute",
       top: topOffset,
       left: leftOffset,
       width: originalWidth,
       height: originalHeight,
       margin: "0"
-    };
-
-    // 7. Make primary absolutely positioned with calculated offset
-    applyCustomCSS(primaryEditor, {
-      ...commonEditorCSSAttributes,
-      zIndex: primaryZIndex // Original + 1 (on top)
-    });
-
-    // 8. Create and position clone
-    cloneEditor = primaryEditor.cloneNode(true);
-    cloneEditor.id = "clone-editor";
-    cloneEditor.contentEditable = "false"; // Display-only
-
-    // Position clone identically to primary
-    applyCustomCSS(cloneEditor, {
-      ...commonEditorCSSAttributes,
-      zIndex: cloneZIndex // Original z-index (below primary)
     });
 
     // Copy all visual computed styles
@@ -310,10 +236,10 @@ document.addEventListener("DOMContentLoaded", function () {
     cloneEditor.style.color = originalBgColor; // Hide text
     primaryEditor.setAttribute("data-overlay-mode", "true");
 
-    // Insert clone before primary
+    // Insert clone before primary (ensures primary renders on top via DOM order)
     parent.insertBefore(cloneEditor, primaryEditor);
 
-    // 9. Set up ResizeObserver to handle parent container resize
+    // 7. Set up ResizeObserver to handle parent container resize
     resizeObserver = new ResizeObserver((entries) => {
       for (let entry of entries) {
         let parentDimensions = { width: 0, height: 0 };
@@ -331,16 +257,8 @@ document.addEventListener("DOMContentLoaded", function () {
           };
         }
 
-        if (shouldRecalculateHeightRatio) {
-          const spaceRect = spacerElement.getBoundingClientRect();
-          heightRatio = spaceRect.height / parentDimensions.height;
-        }
-
         const newWidth = parseInt(parentDimensions.width * widthRatio);
         const newHeight = parseInt(parentDimensions.height * heightRatio);
-
-        spacerElement.style.width = newWidth + "px";
-        spacerElement.style.height = newHeight + "px";
 
         const adjustedDimensions = calculateAdjustedDimensions(
           computed,
@@ -348,16 +266,7 @@ document.addEventListener("DOMContentLoaded", function () {
           newHeight
         );
 
-        // Update primary
-        primaryEditor.style.width = adjustedDimensions.width + "px";
-
-        // If max-height is present then Don't set explicit height - let content determine it (up to max-height)
-        // else if No max-height, set explicit height
-        primaryEditor.style.height = useAutoHeight
-          ? "auto"
-          : adjustedDimensions.height + "px";
-
-        // Update clone
+        // Update clone dimensions to match resized primary
         if (cloneEditor) {
           cloneEditor.style.width = adjustedDimensions.width + "px";
           cloneEditor.style.height = useAutoHeight
@@ -369,7 +278,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     resizeObserver.observe(parent);
 
-    // 10. Initial content sync
+    // 8. Initial content sync
     updateClone();
   }
 
@@ -377,56 +286,34 @@ document.addEventListener("DOMContentLoaded", function () {
   function removeCloneEditor() {
     if (!cloneEditor) return;
 
+    // 1. Disconnect observers
     if (observer) {
       observer.disconnect();
       observer = null;
       console.log("MutationObserver disconnected");
     }
 
-    // 1. Disconnect ResizeObserver
     if (resizeObserver) {
       resizeObserver.disconnect();
       resizeObserver = null;
       console.log("ResizeObserver disconnected");
     }
 
-    // 2. Remove spacer element
-    if (spacerElement) {
-      spacerElement.remove();
-      spacerElement = null;
-      console.log("Spacer removed");
-    }
-
-    // 3. Remove clone
+    // 2. Remove clone
     cloneEditor.remove();
     cloneEditor = null;
     console.log("Clone removed");
 
-    // 4. Restore primary editor's original position
-    if (originalPrimaryPosition !== null) {
-      primaryEditor.style.position = originalPrimaryPosition;
-      primaryEditor.style.top = "";
-      primaryEditor.style.left = "";
-      primaryEditor.style.width = "";
-      primaryEditor.style.height = "";
-      primaryEditor.style.margin = ""; // Restore original margin
-      originalPrimaryPosition = null;
-      console.log("Primary position restored");
-    }
-
-    // 5. Restore primary editor's background and z-index
+    // 3. Restore primary editor's position
+    primaryEditor.style.position = "";
     primaryEditor.removeAttribute("data-overlay-mode");
-    primaryEditor.style.zIndex = "";
 
-    // 6. Restore parent's position if we changed it
+    // 4. Clear parent reference (leave parent positioned for stability)
     if (positionedAncestor) {
-      // Note: We leave parent as positioned since other content might depend on it
-      // Only clear our reference
       positionedAncestor = null;
     }
 
-    // 7. Reset height-related flags
-    shouldRecalculateHeightRatio = false;
+    // 5. Reset flags
     useAutoHeight = false;
 
     console.log("Clone editor removed and state restored");
@@ -593,14 +480,4 @@ document.addEventListener("DOMContentLoaded", function () {
   // Make functions globally accessible
   window.clearEditor = clearEditor;
   window.insertMarkedParagraph = insertMarkedParagraph;
-
-  //NOTE: This code can be removed later
-  //const parentComputed = window.getComputedStyle(parent);
-  // Calculate adjusted parent dimensions (border-box)
-  // const adjustedParentDimensions = calculateAdjustedDimensions(
-  //   parentComputed,
-  //   entry.contentRect.width,
-  //   entry.contentRect.height,
-  //   false
-  // );
 });
