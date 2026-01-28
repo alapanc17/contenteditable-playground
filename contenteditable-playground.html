@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -19,6 +19,7 @@
         display: flex;
         gap: 20px;
         margin: 20px 0;
+        transition: all 0.25s ease;
       }
       .editor-section {
         flex: 1;
@@ -38,6 +39,9 @@
         background-color: #f9f9f9;
         font-family: inherit;
         line-height: 1.6;
+        transition:
+          opacity 0.25s ease,
+          color 0.25s ease;
       }
       #editor,
       #output {
@@ -91,9 +95,9 @@
       }
 
       .container.merged #output {
-        color: #fff;
         position: relative;
         z-index: 1;
+        opacity: 0.9;
       }
 
       .merge-controls {
@@ -103,10 +107,17 @@
         border-radius: 8px;
       }
 
-      .merge-controls label {
+      .merge-controls h3 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: #444;
+      }
+
+      .merge-controls .step {
         display: flex;
         align-items: center;
         gap: 10px;
+        margin-bottom: 8px;
         cursor: pointer;
         font-weight: 500;
       }
@@ -117,6 +128,18 @@
         cursor: pointer;
       }
 
+      .merge-controls .hint {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+      }
+
+      /* Step 1: invisible mirror text, show only simulated underline */
+      #output.invisible-mirror {
+        color: transparent;
+        caret-color: transparent;
+      }
+
       /* ID selector for testing - mark style */
       #marked-text {
         background-color: #ffeb3b;
@@ -124,6 +147,30 @@
         border-radius: 4px;
         font-weight: 500;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Debug panel styles */
+      #debug-panel {
+        margin-top: 20px;
+        padding: 12px 14px;
+        background-color: #f5f5f5;
+        border-radius: 8px;
+        font-size: 12px;
+        color: #333;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+      }
+
+      #debug-panel h3 {
+        margin: 0 0 6px 0;
+        font-size: 13px;
+        color: #555;
+      }
+
+      #debug-info {
+        white-space: pre-wrap;
+        margin: 0;
       }
     </style>
     <script type="module" src="./scripts/contenteditable.js"></script>
@@ -143,14 +190,31 @@
         Insert Marked Paragraph (ID Test)
       </button>
       <div class="merge-controls">
-        <label>
+        <h3>Guided IME Composition Reveal</h3>
+        <label class="step">
+          <input
+            type="checkbox"
+            id="hideTextCheckbox"
+            onchange="toggleMirrorVisibility()"
+          />
+          <span>1. Hide mirror text (show only simulated underline)</span>
+        </label>
+        <div class="hint">
+          Start an IME composition, then enable this to see only the traced
+          underline in the mirror.
+        </div>
+        <label class="step">
           <input
             type="checkbox"
             id="mergeCheckbox"
             onchange="toggleMergeMode()"
           />
-          <span>Merge Editors (Overlay Mode)</span>
+          <span>2. Overlay mirror on top of editor</span>
         </label>
+        <div class="hint">
+          With composition active, overlay the mirror to compare OS underline
+          and simulated underline in-place.
+        </div>
       </div>
     </div>
 
@@ -195,11 +259,16 @@
       </div>
 
       <div class="editor-section">
-        <h3>HTML Output</h3>
+        <h3>Mirror Output (simulated underline)</h3>
         <div id="output" class="playground">
           Start typing here... You can edit this text freely!
         </div>
       </div>
+    </div>
+
+    <div id="debug-panel">
+      <h3>Composition Debug</h3>
+      <pre id="debug-info">Waiting for composition events…</pre>
     </div>
 
     <a href="index.html">← Back to Demo Page</a>

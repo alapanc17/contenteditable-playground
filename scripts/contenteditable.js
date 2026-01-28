@@ -2,6 +2,7 @@ import { copyComputedStyles, getNodePath, getNodeByPath } from "./utils.js";
 document.addEventListener("DOMContentLoaded", function () {
   const editor = document.getElementById("editor");
   const output = document.getElementById("output");
+  const debugInfo = document.getElementById("debug-info");
 
   let isComposing = false;
   let compositionStartOffset = 0;
@@ -9,6 +10,27 @@ document.addEventListener("DOMContentLoaded", function () {
   let compositionData = "";
   let rafId = null; // For throttling updates with requestAnimationFrame
   let range = null;
+
+  function updateDebugPanel(phase) {
+    if (!debugInfo) return;
+    const pathString =
+      compositionStartPath !== null
+        ? JSON.stringify(compositionStartPath)
+        : "(none)";
+    const dataString = compositionData || "(none)";
+    debugInfo.textContent =
+      "Phase: " +
+      phase +
+      "\n" +
+      "Start offset: " +
+      compositionStartOffset +
+      "\n" +
+      "Current data: " +
+      dataString +
+      "\n" +
+      "Path: " +
+      pathString;
+  }
 
   // Composition event handlers
   editor.addEventListener("compositionstart", function (e) {
@@ -22,6 +44,7 @@ document.addEventListener("DOMContentLoaded", function () {
       compositionStartPath = getNodePath(range.startContainer, editor);
     }
     console.log("Composition started at offset:", compositionStartOffset);
+    updateDebugPanel("compositionstart");
   });
 
   editor.addEventListener("compositionupdate", function (e) {
@@ -30,6 +53,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (isComposing) {
       compositionData = e.data || "";
       console.log("Composition update:", compositionData);
+      updateDebugPanel("compositionupdate");
     }
   });
 
@@ -40,6 +64,7 @@ document.addEventListener("DOMContentLoaded", function () {
     console.log("Composition ended:", e.data);
     // Remove highlighting and show normal output
     updateOutput();
+    updateDebugPanel("compositionend");
   });
 
   // Sync scroll positions between editor and output
@@ -161,10 +186,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const afterText = textContent.substring(endOffset);
 
           // Create the highlighted span
-          const span = document.createElement("span");
-          span.style.borderBottom = "2px dashed #007bff";
-          // span.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
-          span.textContent = composingText;
+          const span = createUnderlinedSpan(composingText);
 
           // Replace the text node with structured content
           const beforeNode = document.createTextNode(beforeText);
@@ -177,13 +199,17 @@ document.addEventListener("DOMContentLoaded", function () {
       } else if (parent && !textNode) {
         // No text node yet - the element is empty or just being typed into
         // Create the highlighted span directly
-        const span = document.createElement("span");
-        span.style.borderBottom = "2px dashed #007bff";
-        // span.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
-        span.textContent = compositionText;
+        const span = createUnderlinedSpan(compositionText);
         parent.appendChild(span);
       }
     }
+  }
+
+  function createUnderlinedSpan(textContent) {
+    const span = document.createElement("span");
+    span.style.borderBottom = "2px dashed #007bff";
+    span.textContent = textContent;
+    return span;
   }
 
   function clearEditor() {
@@ -248,6 +274,16 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function toggleMirrorVisibility() {
+    const checkbox = document.getElementById("hideTextCheckbox");
+    if (!checkbox) return;
+    if (checkbox.checked) {
+      output.classList.add("invisible-mirror");
+    } else {
+      output.classList.remove("invisible-mirror");
+    }
+  }
+
   // Auto sync content on page load
   updateOutput();
 
@@ -257,4 +293,5 @@ document.addEventListener("DOMContentLoaded", function () {
   window.insertItalic = insertItalic;
   window.insertMarkedParagraph = insertMarkedParagraph;
   window.toggleMergeMode = toggleMergeMode;
+  window.toggleMirrorVisibility = toggleMirrorVisibility;
 });
