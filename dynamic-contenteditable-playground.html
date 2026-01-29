@@ -1,297 +1,74 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dynamic ContentEditable Playground</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        max-width: 1200px;
-        margin: 40px auto;
-        padding: 20px;
-        line-height: 1.6;
-      }
-      h1 {
-        color: #333;
-      }
-      p.description {
-        color: #666;
-        margin-bottom: 30px;
-      }
-
-      /* Container for overlaid editors */
-      .editor-container {
-        position: relative;
-        width: 100%;
-        /* height: 500px; */
-        margin: 20px 0;
-      }
-
-      [contenteditable="true"][data-overlay-mode="true"],
-      [contenteditable="true"][data-overlay-mode="true"] * {
-        background-color: transparent !important;
-      }
-
-      /* Clone will be styled dynamically via JavaScript */
-      #clone-editor {
-        position: absolute;
-        top: 0;
-        left: 0;
-        /* z-index: 1; */
-      }
-
-      .controls {
-        margin: 20px 0;
-      }
-
-      button {
-        padding: 10px 15px;
-        margin-right: 10px;
-        cursor: pointer;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-      }
-
-      button:hover {
-        background-color: #0056b3;
-      }
-
-      a {
-        display: inline-block;
-        margin-top: 20px;
-        color: #0066cc;
-        text-decoration: none;
-      }
-
-      a:hover {
-        text-decoration: underline;
-      }
-
-      /* ID selector for testing */
-      #marked-text {
-        background-color: #ffeb3b;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-weight: 500;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-
-      input[type="text"],
-      textarea,
-      .editable-div {
-        display: block;
-        padding: 12px 15px;
-        font-size: 16px;
-        font-family: inherit;
-        border: 2px solid #e0e0e0;
-        border-radius: 6px;
-        transition: all 0.3s ease;
-        background-color: white;
-      }
-
-      input[type="text"]:focus,
-      textarea:focus,
-      .editable-div:focus {
-        outline: none;
-        border-color: #007bff;
-        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-      }
-
-      input[type="text"]:hover,
-      textarea:hover,
-      .editable-div:hover {
-        border-color: #b0b0b0;
-      }
-
-      .editable-div {
-        min-height: 300px;
-        max-height: 350px;
-        overflow-y: auto;
-        line-height: 1.5;
-        cursor: text;
-      }
-
-      .editable-div:empty:before {
-        content: attr(data-placeholder);
-        color: #999;
-      }
-
-      /* Widget */
-      .widget {
-        margin: 15px 0;
-        padding: 15px;
-        background-color: #fff;
-        border: 2px solid #9c27b0;
-        border-radius: 8px;
-        cursor: default;
-      }
-
-      .widget strong {
-        display: block;
-        margin-bottom: 10px;
-        color: #9c27b0;
-        font-size: 14px;
-      }
-
-      .widget-content {
-        padding: 10px;
-        background-color: #f3e5f5;
-        border: 1px dashed #9c27b0;
-        border-radius: 4px;
-        cursor: text;
-        min-height: calc(1 * 22px + 16px);
-        max-height: calc(30vh - 80px);
-        overflow-y: auto;
-        margin-left: 8px;
-      }
-
-      .widget-content:focus {
-        background-color: #e1bee7;
-        outline: none;
-      }
-
-      /* Rich Editor */
-      .rich-editor {
-        min-height: 200px;
-      }
-
-      .rich-editor p {
-        margin: 10px 0;
-      }
-
-      .rich-editor ul {
-        margin: 10px 0;
-        padding-left: 25px;
-      }
-
-      .rich-editor li {
-        margin: 5px 0;
-      }
-
-      /* Mentions and Tags (contenteditable="false" pills) */
-      .mention,
-      .tag {
-        display: inline-block;
-        padding: 2px 8px;
-        margin: 0 2px;
-        border-radius: 12px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: default;
-        user-select: none;
-        -webkit-user-select: none;
-      }
-
-      .mention {
-        background-color: #e3f2fd;
-        color: #1976d2;
-        border: 1px solid #90caf9;
-      }
-
-      .tag {
-        background-color: #f3e5f5;
-        color: #7b1fa2;
-        border: 1px solid #ce93d8;
-      }
-
-      .mention:hover,
-      .tag:hover {
-        opacity: 0.8;
-      }
-    </style>
+    <link rel="stylesheet" href="./input-clone-playground.css" />
     <script
       type="module"
       src="./scripts/dynamic-contenteditable-playground.js"
     ></script>
   </head>
   <body>
-    <h1>Dynamic ContentEditable Playground</h1>
-    <p class="description">
-      The clone editor is created dynamically on page load and positioned behind
-      the primary editor. Type to see composition highlighting appear below!
-    </p>
+    <div class="container">
+      <h1>Dynamic ContentEditable Playground</h1>
+      <p class="description">
+        The clone editor is created dynamically on page load and positioned
+        behind the primary editor. Type to see composition highlighting appear
+        below!
+      </p>
 
-    <div class="controls">
-      <button onclick="clearEditor()">Clear Content</button>
-      <button onclick="insertMarkedParagraph()">
-        Insert Marked Paragraph (ID Test)
-      </button>
-    </div>
+      <div class="controls">
+        <button onclick="clearEditor()">Clear Content</button>
+        <button onclick="insertMarkedParagraph()">
+          Insert Marked Paragraph (ID Test)
+        </button>
+      </div>
 
-    <div class="editor-container">
-      <h3>Complex Example: Simulated Rich Editor</h3>
-      <div class="editable-div rich-editor" contenteditable="true">
-        <p>
-          Welcome to our meeting! Attendees:
-          <span class="mention" contenteditable="false">@alice</span>
-          <span class="mention" contenteditable="false">@bob</span>
-        </p>
-        <p>Topics to discuss:</p>
-        <ul>
-          <li>
-            Project status
-            <span class="tag" contenteditable="false">#urgent</span>
-          </li>
-          <li>Budget review</li>
-        </ul>
-        <div class="widget" contenteditable="false">
-          <strong>📊 Embedded Widget (Non-editable)</strong>
-          <div class="widget-content" contenteditable="true">
-            <p>
-              Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
-              officia deserunt mollit anim id est laborum. Sed ut perspiciatis
-              unde omnis iste natus error sit voluptatem accusantium doloremque
-              laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore
-              veritatis et quasi architecto beatae vitae dicta sunt explicabo.
-            </p>
+      <div class="editor-container">
+        <h3>Complex Example: Simulated Rich Editor</h3>
+        <div class="editable-div rich-editor" contenteditable="true">
+          <p>
+            Welcome to our meeting! Attendees:
+            <span class="mention" contenteditable="false">@alice</span>
+            <span class="mention" contenteditable="false">@bob</span>
+          </p>
+          <p>Topics to discuss:</p>
+          <ul>
+            <li>
+              Project status
+              <span class="tag" contenteditable="false">#urgent</span>
+            </li>
+            <li>Budget review</li>
+          </ul>
+          <div class="widget" contenteditable="false">
+            <strong>📊 Embedded Widget (Non-editable)</strong>
+            <div class="widget-content" contenteditable="true">
+              <p>
+                Excepteur sint occaecat cupidatat non proident, sunt in culpa
+                qui officia deserunt mollit anim id est laborum. Sed ut
+                perspiciatis unde omnis iste natus error sit voluptatem
+                accusantium doloremque laudantium, totam rem aperiam, eaque ipsa
+                quae ab illo inventore veritatis et quasi architecto beatae
+                vitae dicta sunt explicabo.
+              </p>
+            </div>
           </div>
+          <p>Continue typing here after the widget...</p>
         </div>
-        <p>Continue typing here after the widget...</p>
+        <!-- Clone will be inserted here dynamically -->
       </div>
-      <h3>Normal Content editable</h3>
-      <div class="editable-div rich-editor" contenteditable="true">
-        <p>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-          eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
-          minim veniam, quis nostrud exercitation ullamco laboris nisi ut
-          aliquip ex ea commodo consequat. Duis aute irure dolor in
-          reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
-          pariatur.
-        </p>
 
-        <p id="marked-text">Testing dynamic content styling with ID.</p>
-
-        <p>
-          Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
-          officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde
-          omnis iste natus error sit voluptatem accusantium doloremque
-          laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore
-          veritatis et quasi architecto beatae vitae dicta sunt explicabo.
-        </p>
-
-        <p>
-          Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut
-          fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem
-          sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor
-          sit amet, consectetur, adipisci velit, sed quia non numquam eius modi
-          tempora incidunt ut labore et dolore magnam aliquam quaerat
-          voluptatem.
-        </p>
-
-        <p>
-          Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis
-          suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis
-          autem vel eum iure reprehenderit qui in ea voluptate velit esse quam
-          nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo
-          voluptas nulla pariatur.
-        </p>
+      <div class="demo-section">
+        <input type="text" placeholder="Text Input" />
       </div>
-      <!-- Clone will be inserted here dynamically -->
+
+      <div class="demo-section">
+        <textarea placeholder="Default Textarea" rows="8" cols="50"></textarea>
+      </div>
+
+      <a href="index.html">← Back to Demo Page</a>
     </div>
-
-    <a href="index.html">← Back to Demo Page</a>
   </body>
 </html>

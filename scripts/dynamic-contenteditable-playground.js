@@ -444,9 +444,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const afterText = textContent.substring(endOffset);
 
           // Create highlighted span
-          const span = document.createElement("span");
-          span.style.borderBottom = "2px dashed #007bff";
-          span.textContent = composingText;
+          const span = createUnderlinedSpan(composingText);
 
           // Replace text node with structured content
           const beforeNode = document.createTextNode(beforeText);
@@ -458,12 +456,17 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       } else if (parent && !textNode) {
         // Empty element - create span directly
-        const span = document.createElement("span");
-        span.style.borderBottom = "2px dashed #007bff";
-        span.textContent = compositionText;
+        const span = createUnderlinedSpan(compositionText);
         parent.appendChild(span);
       }
     }
+  }
+
+  function createUnderlinedSpan(textContent) {
+    const span = document.createElement("span");
+    span.style.borderBottom = "2px dashed #007bff";
+    span.textContent = textContent;
+    return span;
   }
 
   // Button functions
