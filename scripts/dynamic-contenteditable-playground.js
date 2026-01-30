@@ -34,11 +34,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function handleCompositionStart() {
     isComposing = true;
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      range = selection.getRangeAt(0);
-      compositionStartOffset = range.startOffset;
-      compositionStartPath = getNodePath(range.startContainer, primaryElement);
+    if (isTextInputElement(primaryElement)) {
+      compositionStartOffset = primaryElement.selectionStart;
+      compositionStartPath = null;
+    } else {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        range = selection.getRangeAt(0);
+        compositionStartOffset = range.startOffset;
+        compositionStartPath = getNodePath(
+          range.startContainer,
+          primaryElement
+        );
+      }
     }
     console.log("Composition started at offset:", compositionStartOffset);
   }
@@ -55,7 +63,11 @@ document.addEventListener("DOMContentLoaded", function () {
     compositionData = "";
     compositionStartPath = null;
     console.log("Composition ended:", e.data);
-    updateClone();
+    if (isTextInputElement(primaryElement)) {
+      syncTextInputValueToCloneAndScroll();
+    } else {
+      updateClone();
+    }
   }
 
   function handleScroll() {
@@ -87,14 +99,53 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /**
+   * Builds clone content for input/textarea with optional composition underline.
+   * Pure: given value and composition params, returns a DocumentFragment or null.
+   * When not composing (compositionData null/undefined), returns null (caller uses textContent).
+   * When composing, returns fragment: text(before) + underlinedSpan(composing) + text(after).
+   */
+  function buildTextInputCloneContent(
+    value,
+    compositionStartOffset,
+    compositionData
+  ) {
+    if (compositionData == null) return null;
+    const start = Math.max(0, Math.min(compositionStartOffset, value.length));
+    const end = Math.min(value.length, start + compositionData.length);
+    const before = value.slice(0, start);
+    const composing = value.slice(start, end);
+    const after = value.slice(end);
+    const fragment = document.createDocumentFragment();
+    fragment.appendChild(document.createTextNode(before));
+    fragment.appendChild(createUnderlinedSpan(composing));
+    fragment.appendChild(document.createTextNode(after));
+    return fragment;
+  }
+
+  /**
    * Syncs primary input/textarea value to the clone's text content.
-   * Used only for input and textarea; separate from updateClone (contenteditable).
-   * No RAF: input event fires once per change and sync is a simple value copy.
+   * When composing, uses buildTextInputCloneContent to show underlined segment in clone.
    */
   function syncTextInputValueToClone() {
     if (!cloneElement || !primaryElement) return;
     if (!isTextInputElement(primaryElement)) return;
-    cloneElement.textContent = primaryElement.value;
+    const value = primaryElement.value;
+    if (
+      isComposing &&
+      compositionData != null &&
+      compositionStartPath === null
+    ) {
+      const fragment = buildTextInputCloneContent(
+        value,
+        compositionStartOffset,
+        compositionData
+      );
+      if (fragment !== null) {
+        cloneElement.replaceChildren(fragment);
+        return;
+      }
+    }
+    cloneElement.textContent = value;
   }
 
   /**
