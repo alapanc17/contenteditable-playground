@@ -7,7 +7,8 @@ import {
   getNodeByPath,
   findNearestAncestor,
   applyCustomCSS,
-  isTextInput as isTextInputElement
+  isTextInput as isTextInputElement,
+  pipe
 } from "./utils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -64,6 +65,31 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  /**
+   * Syncs primary input/textarea value to the clone's text content.
+   * Used only for input and textarea; separate from updateClone (contenteditable).
+   * No RAF: input event fires once per change and sync is a simple value copy.
+   */
+  function syncTextInputValueToClone() {
+    if (!cloneElement || !primaryElement) return;
+    if (!isTextInputElement(primaryElement)) return;
+    cloneElement.textContent = primaryElement.value;
+  }
+
+  /**
+   * Composed: value sync then scroll sync. Built with generic pipe so any
+   * input/keyup trigger runs both; handleScroll ignores the previous return value.
+   */
+  const syncTextInputValueToCloneAndScroll = pipe(
+    syncTextInputValueToClone,
+    handleScroll
+  );
+
+  const syncContentEditableValueToCloneAndScroll = pipe(
+    updateClone,
+    handleScroll
+  );
+
   document.addEventListener(
     "focus",
     (event) => {
@@ -79,7 +105,7 @@ document.addEventListener("DOMContentLoaded", function () {
       );
       if (isEditable || isTextInput) {
         if (primaryElement && primaryElement !== event.target) {
-          // Remove event handlers
+          // Remove event handlers from previous primary
           primaryElement.removeEventListener(
             "compositionstart",
             handleCompositionStart
@@ -142,20 +168,18 @@ document.addEventListener("DOMContentLoaded", function () {
                   compositionData
                 );
               }
-              updateClone(compositionData);
-              handleScroll();
+              syncContentEditableValueToCloneAndScroll(compositionData);
               rafId = null;
             });
           });
-
           observer.observe(primaryElement, observerConfig);
-          updateClone();
+          syncContentEditableValueToCloneAndScroll();
         } else if (isTextInput) {
-          // Text input - observe value changes
-          primaryElement.addEventListener("input", (event) => {
-            console.log("Text input value changed:", event.target.value);
-          });
-          cloneElement.textContent = primaryElement.value;
+          primaryElement.addEventListener(
+            "input",
+            syncTextInputValueToCloneAndScroll
+          );
+          syncTextInputValueToCloneAndScroll();
         }
       }
     },
@@ -242,6 +266,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Copy all visual computed styles
     copyAllVisualStyles(primaryElement, cloneElement);
+    if (primaryElement instanceof HTMLInputElement) {
+      cloneElement.style.whiteSpace = "nowrap";
+      cloneElement.style.overflowX = "auto";
+      cloneElement.style.overflowY = "hidden";
+      cloneElement.classList.add("clone-single-line-input");
+    }
 
     // Handle z-index stacking
     // If primary is absolute/fixed, both editors are positioned elements
@@ -270,9 +300,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Insert clone before primary (ensures primary renders on top via DOM order)
     parent.insertBefore(cloneElement, primaryElement);
-
-    // Sync initial scroll position from primary to clone
-    handleScroll();
 
     // 7. Set up ResizeObserver to watch primary editor
     // Fires when primary resizes for ANY reason:
@@ -322,7 +349,15 @@ document.addEventListener("DOMContentLoaded", function () {
   function removeCloneElement() {
     if (!cloneElement) return;
 
-    // 1. Disconnect observers
+    // 1. Remove input/textarea value sync listeners
+    if (primaryElement && isTextInputElement(primaryElement)) {
+      primaryElement.removeEventListener(
+        "input",
+        syncTextInputValueToCloneAndScroll
+      );
+    }
+
+    // 2. Disconnect observers
     if (observer) {
       observer.disconnect();
       observer = null;
@@ -335,16 +370,16 @@ document.addEventListener("DOMContentLoaded", function () {
       console.log("ResizeObserver disconnected");
     }
 
-    // 2. Remove clone
+    // 3. Remove clone
     cloneElement.remove();
     cloneElement = null;
 
-    // 3. Restore primary editor's position and z-index
+    // 4. Restore primary editor's position and z-index
     primaryElement.style.position = "";
     primaryElement.style.zIndex = ""; // Clear z-index if it was set
     primaryElement.removeAttribute("data-overlay-mode");
 
-    // 4. Clear parent reference (leave parent positioned for stability)
+    // 5. Clear parent reference (leave parent positioned for stability)
     if (positionedAncestor) {
       positionedAncestor = null;
     }

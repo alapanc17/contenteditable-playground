@@ -96,12 +96,26 @@ p.description {
   background-color: transparent !important;
 }
 
+input[data-overlay-mode="true"],
+textarea[data-overlay-mode="true"] {
+  background-color: transparent !important;
+}
+
 /* Clone will be styled dynamically via JavaScript */
 #clone-editor {
   position: absolute;
   top: 0;
   left: 0;
   /* z-index: 1; */
+}
+
+/* Single-line input clone: hide scrollbar, keep horizontal scroll */
+#clone-editor.clone-single-line-input {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#clone-editor.clone-single-line-input::-webkit-scrollbar {
+  display: none;
 }
 
 .controls {
