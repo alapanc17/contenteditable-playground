@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const observerConfig = {
     childList: true,
     subtree: true,
-    attributes: true,
+    attributes: ["style", "class"],
     characterData: true
   };
 
@@ -63,6 +63,27 @@ document.addEventListener("DOMContentLoaded", function () {
       cloneElement.scrollTop = primaryElement.scrollTop;
       cloneElement.scrollLeft = primaryElement.scrollLeft;
     }
+  }
+
+  // Sync clone position to match primary editor's current position
+  function getPrimaryElementPositionData(primaryElement) {
+    // 1. Get primary editor measurements
+    const primaryRect = primaryElement.getBoundingClientRect();
+
+    // 2. Find parent container
+    const parent = findNearestAncestor(primaryElement);
+    const parentRect = parent.getBoundingClientRect();
+
+    // 3. Calculate offset from parent
+    // Account for parent's border since absolute positioning is relative to padding edge
+    const parentComputed = window.getComputedStyle(parent);
+    const parentBorderTop = parseFloat(parentComputed.borderTopWidth) || 0;
+    const parentBorderLeft = parseFloat(parentComputed.borderLeftWidth) || 0;
+
+    const topOffset = primaryRect.top - parentRect.top - parentBorderTop;
+    const leftOffset = primaryRect.left - parentRect.left - parentBorderLeft;
+
+    return { parent, parentComputed, topOffset, leftOffset };
   }
 
   /**
@@ -144,35 +165,47 @@ document.addEventListener("DOMContentLoaded", function () {
         // Scroll sync
         primaryElement.addEventListener("scroll", handleScroll);
 
-        if (isEditable) {
-          // MutationObserver with RAF throttling
-          observer = new MutationObserver(function (mutations) {
-            if (rafId) {
-              cancelAnimationFrame(rafId);
-            }
+        // MutationObserver with RAF throttling
+        observer = new MutationObserver(function (mutations) {
+          if (rafId) {
+            cancelAnimationFrame(rafId);
+          }
 
-            const relevantMutations = mutations.filter((mutation) => {
-              // Ignore data-overlay-mode attribute changes
-              return !(
+          rafId = requestAnimationFrame(() => {
+            // Check if style or class attributes changed
+            const hasStyleOrClassChanges = mutations.some(
+              (mutation) =>
                 mutation.type === "attributes" &&
-                mutation.attributeName === "data-overlay-mode"
+                (mutation.attributeName === "style" ||
+                  mutation.attributeName === "class")
+            );
+
+            if (hasStyleOrClassChanges) {
+              copyAllVisualStyles(primaryElement, cloneElement);
+              const { topOffset, leftOffset } =
+                getPrimaryElementPositionData(primaryElement);
+              applyCustomCSS(cloneElement, {
+                top: topOffset,
+                left: leftOffset,
+                transform: "none"
+              });
+            }
+            if (isComposing) {
+              console.log(
+                "DOM changed during composition, highlighting:",
+                compositionData
               );
-            });
-
-            if (relevantMutations.length === 0) return;
-
-            rafId = requestAnimationFrame(() => {
-              if (isComposing) {
-                console.log(
-                  "DOM changed during composition, highlighting:",
-                  compositionData
-                );
-              }
+            }
+            if (isEditable) {
               syncContentEditableValueToCloneAndScroll(compositionData);
-              rafId = null;
-            });
+            }
+            rafId = null;
           });
-          observer.observe(primaryElement, observerConfig);
+        });
+        observer.observe(primaryElement, observerConfig);
+
+        // Sync initial value to clone
+        if (isEditable) {
           syncContentEditableValueToCloneAndScroll();
         } else if (isTextInput) {
           primaryElement.addEventListener(
@@ -212,25 +245,15 @@ document.addEventListener("DOMContentLoaded", function () {
     if (cloneElement) return; // Already created
 
     // 1. Capture measurements BEFORE changing anything
-    const primaryRect = primaryElement.getBoundingClientRect();
     const originalBgColor = computed.backgroundColor;
     const originalWidth = computed.width;
     const originalHeight = computed.height;
 
     // 2. Find parent container
-    const parent = findNearestAncestor(primaryElement);
-    const parentRect = parent.getBoundingClientRect();
+    const { parent, parentComputed, topOffset, leftOffset } =
+      getPrimaryElementPositionData(primaryElement);
 
-    // 3. Calculate offset from parent
-    // Account for parent's border since absolute positioning is relative to padding edge
-    const parentComputed = window.getComputedStyle(parent);
-    const parentBorderTop = parseFloat(parentComputed.borderTopWidth) || 0;
-    const parentBorderLeft = parseFloat(parentComputed.borderLeftWidth) || 0;
-
-    const topOffset = primaryRect.top - parentRect.top - parentBorderTop;
-    const leftOffset = primaryRect.left - parentRect.left - parentBorderLeft;
-
-    // 4. Make parent positioned if needed
+    // 3. Make parent positioned if needed
     if (parentComputed.position === "static") {
       parent.style.position = "relative";
       positionedAncestor = parent;
@@ -261,6 +284,7 @@ document.addEventListener("DOMContentLoaded", function () {
       left: leftOffset,
       width: originalWidth,
       height: originalHeight,
+      transform: "none",
       margin: "0"
     });
 
