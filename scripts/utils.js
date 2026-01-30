@@ -1,3 +1,17 @@
+/**
+ * Generic composition: pipe(f, g)(x) runs f(x), then g with that result.
+ * Use for sequencing; later functions receive the previous return value.
+ * Side-effect-only fns (no args, no meaningful return) work: pipe(f, g)() runs f() then g(undefined).
+ * @param {...Function} fns - Functions to run in order (left to right)
+ * @returns {Function} A function that runs all fns in sequence
+ */
+export function pipe(...fns) {
+  if (fns.length === 0) return () => undefined;
+  return function piped(...args) {
+    return fns.slice(1).reduce((acc, fn) => fn(acc), fns[0](...args));
+  };
+}
+
 // Helper function to copy computed styles from one element to another
 // Only needed for elements with IDs (classes and inline styles work automatically)
 export function copyComputedStyles(sourceElement, targetElement) {
@@ -145,8 +159,7 @@ export function copyAllVisualStyles(source, target) {
 
   // Properties that need computed values (before resolution) to preserve relative units
   const propsNeedingComputedValues = {
-    lineHeight: "line-height",
-    fontSize: "font-size"
+    lineHeight: "line-height"
   };
 
   // Copy properties that need computed values first
@@ -178,6 +191,7 @@ export function copyAllVisualStyles(source, target) {
   const otherVisualProps = [
     "padding",
     "fontFamily",
+    "fontSize",
     "fontWeight",
     "fontStyle",
     "letterSpacing",
@@ -189,6 +203,9 @@ export function copyAllVisualStyles(source, target) {
     "boxSizing",
     "overflowY",
     "overflowX",
+    "overflowWrap",
+    "whiteSpace",
+    "columnCount",
     "border"
   ];
 
