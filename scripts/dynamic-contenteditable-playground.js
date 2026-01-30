@@ -6,13 +6,14 @@ import {
   getNodePath,
   getNodeByPath,
   findNearestAncestor,
-  applyCustomCSS
+  applyCustomCSS,
+  isTextInput as isTextInputElement
 } from "./utils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   // State variables
-  let primaryEditor = null;
-  let cloneEditor = null;
+  let primaryElement = null;
+  let cloneElement = null;
   let isComposing = false;
   let compositionStartOffset = 0;
   let compositionStartPath = null;
@@ -36,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (selection.rangeCount > 0) {
       range = selection.getRangeAt(0);
       compositionStartOffset = range.startOffset;
-      compositionStartPath = getNodePath(range.startContainer, primaryEditor);
+      compositionStartPath = getNodePath(range.startContainer, primaryElement);
     }
     console.log("Composition started at offset:", compositionStartOffset);
   }
@@ -57,9 +58,9 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function handleScroll() {
-    if (cloneEditor) {
-      cloneEditor.scrollTop = primaryEditor.scrollTop;
-      cloneEditor.scrollLeft = primaryEditor.scrollLeft;
+    if (cloneElement) {
+      cloneElement.scrollTop = primaryElement.scrollTop;
+      cloneElement.scrollLeft = primaryElement.scrollLeft;
     }
   }
 
@@ -67,86 +68,95 @@ document.addEventListener("DOMContentLoaded", function () {
     "focus",
     (event) => {
       const isEditable = event.target.isContentEditable;
-      console.log("Focus:", event.target, "contenteditable:", isEditable);
-      if (isEditable) {
-        if (primaryEditor && primaryEditor !== event.target) {
+      const isTextInput = isTextInputElement(event.target);
+      console.log(
+        "Focus:",
+        event.target,
+        "contenteditable:",
+        isEditable,
+        "isTextInput:",
+        isTextInput
+      );
+      if (isEditable || isTextInput) {
+        if (primaryElement && primaryElement !== event.target) {
           // Remove event handlers
-          primaryEditor.removeEventListener(
+          primaryElement.removeEventListener(
             "compositionstart",
             handleCompositionStart
           );
 
-          primaryEditor.removeEventListener(
+          primaryElement.removeEventListener(
             "compositionupdate",
             handleCompositionUpdate
           );
 
-          primaryEditor.removeEventListener(
+          primaryElement.removeEventListener(
             "compositionend",
             handleCompositionEnd
           );
-
-          primaryEditor.removeEventListener("scroll", handleScroll);
-
-          // Disconnect MutationObserver
-          if (observer) {
-            observer.disconnect();
-            observer = null;
-          }
         }
 
-        primaryEditor = event.target;
+        primaryElement = event.target;
 
         // Composition event handlers
-        primaryEditor.addEventListener(
+        primaryElement.addEventListener(
           "compositionstart",
           handleCompositionStart
         );
 
-        primaryEditor.addEventListener(
+        primaryElement.addEventListener(
           "compositionupdate",
           handleCompositionUpdate
         );
 
-        primaryEditor.addEventListener("compositionend", handleCompositionEnd);
+        primaryElement.addEventListener("compositionend", handleCompositionEnd);
 
         // Focus event - create clone
-        const primaryStyles = window.getComputedStyle(primaryEditor);
-        createCloneEditor(primaryStyles);
+        const primaryStyles = window.getComputedStyle(primaryElement);
+        createCloneElement(primaryStyles, isTextInput);
 
         // Scroll sync
-        primaryEditor.addEventListener("scroll", handleScroll);
+        primaryElement.addEventListener("scroll", handleScroll);
 
-        // MutationObserver with RAF throttling
-        observer = new MutationObserver(function (mutations) {
-          if (rafId) {
-            cancelAnimationFrame(rafId);
-          }
-
-          const relevantMutations = mutations.filter((mutation) => {
-            // Ignore data-overlay-mode attribute changes
-            return !(
-              mutation.type === "attributes" &&
-              mutation.attributeName === "data-overlay-mode"
-            );
-          });
-
-          if (relevantMutations.length === 0) return;
-
-          rafId = requestAnimationFrame(() => {
-            if (isComposing) {
-              console.log(
-                "DOM changed during composition, highlighting:",
-                compositionData
-              );
+        if (isEditable) {
+          // MutationObserver with RAF throttling
+          observer = new MutationObserver(function (mutations) {
+            if (rafId) {
+              cancelAnimationFrame(rafId);
             }
-            updateClone(compositionData);
-            handleScroll();
-            rafId = null;
-          });
-        });
 
-        observer.observe(primaryEditor, observerConfig);
+            const relevantMutations = mutations.filter((mutation) => {
+              // Ignore data-overlay-mode attribute changes
+              return !(
+                mutation.type === "attributes" &&
+                mutation.attributeName === "data-overlay-mode"
+              );
+            });
+
+            if (relevantMutations.length === 0) return;
+
+            rafId = requestAnimationFrame(() => {
+              if (isComposing) {
+                console.log(
+                  "DOM changed during composition, highlighting:",
+                  compositionData
+                );
+              }
+              updateClone(compositionData);
+              handleScroll();
+              rafId = null;
+            });
+          });
+
+          observer.observe(primaryElement, observerConfig);
+          updateClone();
+        } else if (isTextInput) {
+          // Text input - observe value changes
+          primaryElement.addEventListener("input", (event) => {
+            console.log("Text input value changed:", event.target.value);
+          });
+          cloneElement.textContent = primaryElement.value;
+        }
       }
     },
     true
@@ -156,27 +166,35 @@ document.addEventListener("DOMContentLoaded", function () {
     "blur",
     (event) => {
       const isEditable = event.target.isContentEditable;
-      console.log("Blur:", event.target, "contenteditable:", isEditable);
-      if (isEditable && event.target === primaryEditor) {
+      const isTextInput = isTextInputElement(event.target);
+      console.log(
+        "Blur:",
+        event.target,
+        "contenteditable:",
+        isEditable,
+        "isTextInput:",
+        isTextInput
+      );
+      if ((isEditable || isTextInput) && event.target === primaryElement) {
         // Blur event - remove clone
-        removeCloneEditor();
+        removeCloneElement();
       }
     },
     true
   );
 
   // Create clone on focus (ensures element is fully rendered)
-  function createCloneEditor(computed) {
-    if (cloneEditor) return; // Already created
+  function createCloneElement(computed, isElementTextInput = false) {
+    if (cloneElement) return; // Already created
 
     // 1. Capture measurements BEFORE changing anything
-    const primaryRect = primaryEditor.getBoundingClientRect();
+    const primaryRect = primaryElement.getBoundingClientRect();
     const originalBgColor = computed.backgroundColor;
     const originalWidth = computed.width;
     const originalHeight = computed.height;
 
     // 2. Find parent container
-    const parent = findNearestAncestor(primaryEditor);
+    const parent = findNearestAncestor(primaryElement);
     const parentRect = parent.getBoundingClientRect();
 
     // 3. Calculate offset from parent
@@ -200,18 +218,20 @@ document.addEventListener("DOMContentLoaded", function () {
     // This keeps it in document flow to maintain parent height
     const currentPosition = computed.position;
     if (currentPosition === "static") {
-      applyCustomCSS(primaryEditor, {
+      applyCustomCSS(primaryElement, {
         position: "relative"
       });
     }
 
     // 6. Create and position clone
-    cloneEditor = primaryEditor.cloneNode(true);
-    cloneEditor.id = "clone-editor";
-    cloneEditor.contentEditable = "false"; // Display-only
+    cloneElement = isElementTextInput
+      ? document.createElement("div")
+      : primaryElement.cloneNode(true);
+    cloneElement.id = "clone-editor";
+    cloneElement.contentEditable = "false"; // Display-only
 
     // Position clone to overlay primary exactly
-    applyCustomCSS(cloneEditor, {
+    applyCustomCSS(cloneElement, {
       position: "absolute",
       top: topOffset,
       left: leftOffset,
@@ -221,7 +241,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Copy all visual computed styles
-    copyAllVisualStyles(primaryEditor, cloneEditor);
+    copyAllVisualStyles(primaryElement, cloneElement);
 
     // Handle z-index stacking
     // If primary is absolute/fixed, both editors are positioned elements
@@ -236,20 +256,20 @@ document.addEventListener("DOMContentLoaded", function () {
       const baseZIndex =
         originalZIndex === "auto" ? 0 : parseInt(originalZIndex, 10);
 
-      cloneEditor.style.zIndex = baseZIndex - 1; // Clone below primary
-      primaryEditor.style.zIndex = baseZIndex; // Primary on top
+      cloneElement.style.zIndex = baseZIndex - 1; // Clone below primary
+      primaryElement.style.zIndex = baseZIndex; // Primary on top
       console.log(
         `Applied z-index: clone=${baseZIndex - 1}, primary=${baseZIndex}`
       );
     }
 
     // Transparency setup
-    cloneEditor.style.backgroundColor = originalBgColor;
-    cloneEditor.style.color = originalBgColor; // Hide text
-    primaryEditor.setAttribute("data-overlay-mode", "true");
+    cloneElement.style.backgroundColor = originalBgColor;
+    cloneElement.style.color = originalBgColor; // Hide text
+    primaryElement.setAttribute("data-overlay-mode", "true");
 
     // Insert clone before primary (ensures primary renders on top via DOM order)
-    parent.insertBefore(cloneEditor, primaryEditor);
+    parent.insertBefore(cloneElement, primaryElement);
 
     // Sync initial scroll position from primary to clone
     handleScroll();
@@ -288,22 +308,19 @@ document.addEventListener("DOMContentLoaded", function () {
         );
 
         // Update clone dimensions to match resized primary
-        if (cloneEditor) {
-          cloneEditor.style.width = adjustedDimensions.width + "px";
-          cloneEditor.style.height = adjustedDimensions.height + "px";
+        if (cloneElement) {
+          cloneElement.style.width = adjustedDimensions.width + "px";
+          cloneElement.style.height = adjustedDimensions.height + "px";
         }
       }
     });
 
-    resizeObserver.observe(primaryEditor);
-
-    // 8. Initial content sync
-    updateClone();
+    resizeObserver.observe(primaryElement);
   }
 
   // Remove clone on blur
-  function removeCloneEditor() {
-    if (!cloneEditor) return;
+  function removeCloneElement() {
+    if (!cloneElement) return;
 
     // 1. Disconnect observers
     if (observer) {
@@ -319,54 +336,55 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // 2. Remove clone
-    cloneEditor.remove();
-    cloneEditor = null;
-    console.log("Clone removed");
+    cloneElement.remove();
+    cloneElement = null;
 
     // 3. Restore primary editor's position and z-index
-    primaryEditor.style.position = "";
-    primaryEditor.style.zIndex = ""; // Clear z-index if it was set
-    primaryEditor.removeAttribute("data-overlay-mode");
+    primaryElement.style.position = "";
+    primaryElement.style.zIndex = ""; // Clear z-index if it was set
+    primaryElement.removeAttribute("data-overlay-mode");
 
     // 4. Clear parent reference (leave parent positioned for stability)
     if (positionedAncestor) {
       positionedAncestor = null;
     }
 
+    primaryElement.removeEventListener("scroll", handleScroll);
+
     console.log("Clone editor removed and state restored");
   }
 
   // Update clone content with optional composition highlighting
   function updateClone(compositionText = null) {
-    if (!cloneEditor) return;
+    if (!cloneElement) return;
 
     // Remove overlay-mode temporarily
-    primaryEditor.removeAttribute("data-overlay-mode");
+    primaryElement.removeAttribute("data-overlay-mode");
 
     // Sync root element attributes from primary to clone (except id and specific attributes)
     // Clear existing classes and data attributes on clone
-    cloneEditor.className = primaryEditor.className;
+    cloneElement.className = primaryElement.className;
 
     // Copy other attributes (except id, contenteditable, style, and data-overlay-mode)
-    Array.from(primaryEditor.attributes).forEach((attr) => {
+    Array.from(primaryElement.attributes).forEach((attr) => {
       if (
         !["id", "contenteditable", "style", "data-overlay-mode"].includes(
           attr.name
         )
       ) {
-        cloneEditor.setAttribute(attr.name, attr.value);
+        cloneElement.setAttribute(attr.name, attr.value);
       }
     });
 
     // Create a range covering just the contents of src
     const range = document.createRange();
-    range.selectNodeContents(primaryEditor);
+    range.selectNodeContents(primaryElement);
 
     // Clone the primary editor's content
     const clonedContent = range.cloneContents();
 
     // Merged operation: Copy backgrounds for ALL elements + extra styles for IDs
-    const primaryElements = primaryEditor.querySelectorAll("*");
+    const primaryElements = primaryElement.querySelectorAll("*");
     const clonedElements = clonedContent.querySelectorAll("*");
 
     primaryElements.forEach((primaryEl, index) => {
@@ -390,9 +408,9 @@ document.addEventListener("DOMContentLoaded", function () {
       applyCompositionHighlight(compositionText, clonedContent);
     }
 
-    primaryEditor.setAttribute("data-overlay-mode", "true");
+    primaryElement.setAttribute("data-overlay-mode", "true");
 
-    cloneEditor.replaceChildren(clonedContent);
+    cloneElement.replaceChildren(clonedContent);
   }
 
   // Apply composition highlighting to cloned content
@@ -471,7 +489,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Button functions
   function clearEditor() {
-    primaryEditor.innerHTML = "";
+    primaryElement.innerHTML = "";
     updateClone();
   }
 
@@ -491,10 +509,10 @@ document.addEventListener("DOMContentLoaded", function () {
       selection.removeAllRanges();
       selection.addRange(range);
     } else {
-      primaryEditor.appendChild(p);
+      primaryElement.appendChild(p);
     }
 
-    primaryEditor.focus();
+    primaryElement.focus();
   }
 
   // Make functions globally accessible
