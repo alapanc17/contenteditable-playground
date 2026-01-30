@@ -199,3 +199,18 @@ export function copyAllVisualStyles(source, target) {
     }
   });
 }
+
+export function isTextInput(el) {
+  if (!(el instanceof HTMLElement)) return false;
+
+  if (el instanceof HTMLTextAreaElement) {
+    return true;
+  }
+
+  if (el instanceof HTMLInputElement) {
+    const textTypes = ["text", "search", "url", "tel", "email"];
+    return textTypes.includes(el.type);
+  }
+
+  return false;
+}
